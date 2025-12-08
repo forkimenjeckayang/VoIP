@@ -1,4 +1,4 @@
-const config =  require('./config.js');
+const config = require('./config.js');
 
 const express = require('express')
 const app = express()
@@ -39,10 +39,10 @@ app.use(
     useDefaults: true,
     reportOnly: false,
     directives: {
-      "default-src": ["'self'", "sdk.twilio.com","wss:","ws:","eventgw.twilio.com"
-    ],
+      "default-src": ["'self'", "sdk.twilio.com", "wss:", "ws:", "eventgw.twilio.com"
+      ],
       "object-src": ["'self'"],
-      "script-src": ["'self'","'unsafe-eval'", "'unsafe-inline'"]
+      "script-src": ["'self'", "'unsafe-eval'", "'unsafe-inline'"]
     },
   })
 );
@@ -61,13 +61,13 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1)
 const server = require('http').createServer(app);
 
-global.io = require('socket.io')(server,{ cors: { origin: '*' } });
+global.io = require('socket.io')(server, { cors: { origin: '*' } });
 
 var mongoose = require('./config/db.config');
 
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function() {
+db.once('open', function () {
   console.log('database connected successfully!');
 });
 
@@ -80,7 +80,7 @@ var limiter = new RateLimit({
   message: "Slow down your requests!",
   headers: false
 });
-  
+
 // apply rate limiter to all requests
 app.use(limiter);
 io.on('connection', socket => {
@@ -95,16 +95,15 @@ io.on('connection', socket => {
   });
 });
 
-app.use('/frontend/dist/index.html', express.static('frontend/dist/index.html'));
 app.use('/version.md', express.static('version.md'));
 // app.enable('trust proxy')
-if( process.env.HTTPS.trim() === 'true'){
+if (process.env.HTTPS.trim() === 'true') {
   app.use((req, res, next) => {
-    if (req.header('x-forwarded-proto') !== 'https'){
-      if(req.url == '/get-base-url'){
+    if (req.header('x-forwarded-proto') !== 'https') {
+      if (req.url == '/get-base-url') {
         next()
         // res.status(200).json({url: process.env.BASE_URL.trim()});
-      }else{
+      } else {
         res.sendFile(path.join(__dirname, './error/index.html'));
       }
     } else {
@@ -125,25 +124,18 @@ if( process.env.HTTPS.trim() === 'true'){
   }) */
 }
 // parse requests of content-type - application/json
-app.use(bodyParser.json({limit: '500mb',parameterLimit: 10000000})); 
+app.use(bodyParser.json({ limit: '500mb', parameterLimit: 10000000 }));
 
 // parse requests of content-type - application/x-www-form-urlencoded
-app.use(bodyParser.urlencoded({ extended: true, limit: '500mb',parameterLimit: 10000000 }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '500mb', parameterLimit: 10000000 }));
 app.use('/uploads', express.static('uploads'));
-app.use('/src', express.static('src'));
-app.use('/frontend', express.static('frontend'));
-// app.use('/frontend', express.static('frontend'));
-app.use('/frontend/dist/static/', express.static('frontend/dist/static'));
+
 app.get(`/error`, function (req, res) {
   res.sendFile(path.join(__dirname, './error/index.html'));
 })
-app.get(`/:id`, function (req, res) {
-  res.sendFile(path.join(__dirname, './frontend/dist/index.html'));
-})
-app.get(`/:id/:name`, function (req, res) {
-  res.sendFile(path.join(__dirname, './frontend/dist/index.html'));
-})
-app.use(express.static(path.join(__dirname, './frontend/dist')));
+
+
+
 
 require("./app/routes/auth.route")(app);
 require("./app/routes/setting.route")(app);
@@ -154,12 +146,25 @@ require("./app/routes/email.route")(app);
 require("./app/routes/call.route")(app);
 require("./app/routes/hardwarekey.route")(app);
 
+// Swagger API Docs
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const swaggerDocument = YAML.load('./swagger.yaml');
+
+app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 
 app.get('/api/users/', function (req, res) {
-  res.status(200).json({message: 'success'});
+  res.status(200).json({ message: 'success' });
 })
 
-app.get('/get-base-url', function(req, res) {
-  res.status(200).json({url: process.env.BASE_URL.trim()});
+app.get('/get-base-url', function (req, res) {
+  res.status(200).json({ url: process.env.BASE_URL.trim() });
 });
-server.listen(process.env.PORT)
+if (require.main === module) {
+  server.listen(process.env.PORT, () => {
+    console.log(`Server is running on port ${process.env.PORT}`);
+  });
+}
+
+module.exports = app;

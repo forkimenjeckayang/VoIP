@@ -65,8 +65,8 @@ exports.fileUpload = async (req, res) => {
                 var media = await Media.create(mediaData);
                 if (media) {
                     media.media = combineURLs(
-                      process.env.BASE_URL.trim(),
-                      media.media
+                        process.env.BASE_URL.trim(),
+                        media.media
                     );
                     res.send({ status: true, message: 'Media upload!', data: media });
                 } else {
@@ -81,17 +81,19 @@ exports.fileUpload = async (req, res) => {
 
 var cron = require('node-cron');
 // cron job runs every day at 01:00
-cron.schedule('0 1 * * *', () => {
-    console.log('running a cron job daily at 01:00 to delete mms folder older than 7 days');
-    var startdate = moment();
-    startdate = startdate.subtract(7, "days");
-    startdate = startdate.format("DDMMYYYY");
-    try {
-        fs.rmdirSync("./uploads/" + startdate, { recursive: true });
-    } catch (e) {
-        console.log('folder not found')
-    }
-});
+if (process.env.NODE_ENV !== 'test') {
+    cron.schedule('0 1 * * *', () => {
+        console.log('running a cron job daily at 01:00 to delete mms folder older than 7 days');
+        var startdate = moment();
+        startdate = startdate.subtract(7, "days");
+        startdate = startdate.format("DDMMYYYY");
+        try {
+            fs.rmdirSync("./uploads/" + startdate, { recursive: true });
+        } catch (e) {
+            console.log('folder not found')
+        }
+    });
+}
 exports.deleteMedia = async (req, res) => {
     try {
         var startdate = moment();

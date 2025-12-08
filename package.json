@@ -4,9 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "set NODE_ENV=development && nodemon app.js",
-    "start": "set NODE_ENV=production && node app.js"
+    "test": "jest --detectOpenHandles --forceExit",
+    "dev": "NODE_ENV=development nodemon app.js",
+    "start": "NODE_ENV=production node app.js"
   },
   "author": "Operation Privacy",
   "license": "",
@@ -40,9 +40,15 @@
     "request": "^2.88.2",
     "socket.io": "^4.1.3",
     "speakeasy": "^2.0.0",
-    "telnyx": "^1.18.0",
+    "swagger-ui-express": "^5.0.1",
     "twilio": "^3.67.0",
     "u2f": "^0.1.3",
-    "validatorjs": "^3.22.1"
+    "validatorjs": "^3.22.1",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.1.4"
   }
 }

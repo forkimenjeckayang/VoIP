@@ -1,0 +1,125 @@
+openapi: 3.0.0
+info:
+  title: VoIP Suite SaaS API
+  description: API for managing VoIP users, number inventory, and assignments.
+  version: 1.0.0
+servers:
+  - url: /
+    description: Local Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      security: []
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: User registered successfully
+  /api/auth/login:
+    post:
+      summary: Login
+      security: []
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+  /api/setting/get-number:
+    post:
+      summary: Get Available Number Inventory
+      description: Returns list of unassigned numbers from the Master Account.
+      tags: [Inventory]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  default: twilio
+      responses:
+        "200":
+          description: List of numbers
+  /api/setting/create:
+    post:
+      summary: Assign Number to User (Profile)
+      description: Configures webhooks and creates TwiML app/API Key for the user.
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user
+                - profile
+                - sid
+              properties:
+                user:
+                  type: string
+                  description: User ID
+                profile:
+                  type: string
+                  description: Profile Name
+                sid:
+                  type: string
+                  description: Twilio Phone Number SID (from get-number)
+      responses:
+        "200":
+          description: Number assigned successfully
+  /api/profile/delete:
+    post:
+      summary: Release Number (Delete Profile)
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - profile_id
+              properties:
+                profile_id:
+                  type: string
+                  description: The ID of the Setting/Profile to delete
+      responses:
+        "200":
+          description: Data cleaned up and number released
