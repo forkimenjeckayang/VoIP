@@ -132,5 +132,28 @@ describe('SaaS Inventory & Assignment Flow', () => {
         });
     });
 
+    describe('Balance (POST /api/setting/get-balance)', () => {
+        it('should return account balance', async () => {
+            // Mock Balance
+            const mockBalance = {
+                balance: '50.00',
+                currency: 'USD'
+            };
+            // Ensure the mock function exists (jest auto-mock should handle it if the file requires correctly)
+            if (twilioHelper.getAccountBalance) {
+                twilioHelper.getAccountBalance.mockResolvedValue(mockBalance);
+            } else {
+                // Fallback if auto-mock didn't pick it up yet (though it should)
+                twilioHelper.getAccountBalance = jest.fn().mockResolvedValue(mockBalance);
+            }
+
+            const res = await request(app).post('/api/setting/get-balance').send({});
+
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.status).toBe(true);
+            expect(res.body.data.balance).toEqual('50.00');
+        });
+    });
+
 });
 

@@ -206,6 +206,23 @@ exports.getNumber = async (req, res) => {
   }
 };
 
+exports.getBalance = async (req, res) => {
+  try {
+    const balanceData = await twilioHelper.getAccountBalance();
+    if (balanceData) {
+      res.send({
+        status: true,
+        message: "Account balance retrieved.",
+        data: balanceData,
+      });
+    } else {
+      res.status(400).json({ status: "false", message: "Failed to retrieve balance." });
+    }
+  } catch (error) {
+    res.status(400).send({ status: false, errors: error.message, data: [] });
+  }
+};
+
 exports.sendSms = async (req, res) => {
   try {
     let rules = {

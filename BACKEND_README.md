@@ -61,7 +61,7 @@ A wrapper around the official `twilio` SDK that handles:
 1.  **Clone & Install**:
     ```bash
     git clone [repo]
-    cd VoIP
+    cd voip-backend
     npm install
     ```
 

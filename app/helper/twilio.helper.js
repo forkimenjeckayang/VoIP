@@ -1,5 +1,6 @@
 const twilio = require('twilio')
 const { combineURLs } = require("./common.helper")
+const { parsePhoneNumber } = require('libphonenumber-js')
 
 const getClient = () => {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -157,7 +158,20 @@ const getInventory = () => {
             const allowedCountries = (process.env.ALLOWED_COUNTRIES || 'US').toUpperCase().split(',');
             // Example env: ALLOWED_COUNTRIES=US,CA,GB
 
-            const filteredNumbers = numbers.filter(n => allowedCountries.includes(n.isoCountry));
+            const filteredNumbers = numbers.filter(n => {
+                let country = n.isoCountry;
+                if (!country) {
+                    try {
+                        const parsed = parsePhoneNumber(n.phoneNumber);
+                        if (parsed && parsed.country) {
+                            country = parsed.country;
+                        }
+                    } catch (err) {
+                        // console.log('Parsed Error', err)
+                    }
+                }
+                return country && allowedCountries.includes(country.toUpperCase());
+            });
 
             resolve(filteredNumbers);
         } catch (e) {
@@ -231,6 +245,19 @@ const numberGet = (data) => {
     });
 }
 
+const getAccountBalance = () => {
+    return new Promise(async (resolve) => {
+        try {
+            const client = getClient();
+            const balance = await client.balance.fetch();
+            resolve(balance);
+        } catch (e) {
+            console.log(e);
+            resolve(false);
+        }
+    });
+}
+
 module.exports = {
-    creatTwiml, updateTwiml, deleteTwiml, creatAPIKey, removeAPIKey, unlinkNumber, configureNumber, getInventory, twimlFallbackUpdate, numberFallbackUpdate, twimlGet, numberGet
+    creatTwiml, updateTwiml, deleteTwiml, creatAPIKey, removeAPIKey, unlinkNumber, configureNumber, getInventory, twimlFallbackUpdate, numberFallbackUpdate, twimlGet, numberGet, getAccountBalance
 }
