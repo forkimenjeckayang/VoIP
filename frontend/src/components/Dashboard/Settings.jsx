@@ -21,6 +21,10 @@ function Settings() {
   const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [selectedNumber, setSelectedNumber] = useState(null);
   const [profileName, setProfileName] = useState('');
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     loadData();
@@ -173,6 +177,52 @@ function Settings() {
     loadAvailableNumbers();
   };
 
+  const handleUpdateUsername = async () => {
+    if (!newUsername.trim()) {
+      showAlert('error', 'Please enter a new username');
+      return;
+    }
+
+    try {
+      const res = await api.post('/auth/username/update', {
+        name: newUsername
+      });
+
+      if (res.data.status) {
+        showAlert('success', '✨ Username updated successfully!');
+        setShowUsernameModal(false);
+        setNewUsername('');
+        // Reload user data
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Failed to update username:', error);
+      showAlert('error', error.response?.data?.message || 'Failed to update username');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      showAlert('error', 'Please type DELETE to confirm');
+      return;
+    }
+
+    try {
+      const res = await api.post('/auth/user/delete');
+
+      if (res.data.status) {
+        showAlert('success', 'Account deleted. Logging out...');
+        setTimeout(() => {
+          localStorage.clear();
+          window.location.href = '/login';
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      showAlert('error', error.response?.data?.message || 'Failed to delete account');
+    }
+  };
+
   const getInitials = (email) => {
     if (!email) return '?';
     return email.charAt(0).toUpperCase();
@@ -190,6 +240,17 @@ function Settings() {
           <p className="profile-member-since">
             Member since {new Date(user?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </p>
+          <div className="profile-actions-header">
+            <button onClick={() => {
+              setNewUsername(user?.name || '');
+              setShowUsernameModal(true);
+            }} className="update-username-btn">
+              ✏️ Update Username
+            </button>
+            <button onClick={() => setShowDeleteModal(true)} className="delete-account-btn">
+              🗑️ Delete Account
+            </button>
+          </div>
         </div>
       </div>
 
@@ -409,6 +470,77 @@ function Settings() {
             <div className="modal-actions">
               <button onClick={() => setShowAlertModal(false)} className="confirm-btn">
                 OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Username Modal */}
+      {showUsernameModal && (
+        <div className="modal-overlay" onClick={() => setShowUsernameModal(false)}>
+          <div className="modal-content profile-name-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>✏️ Update Username</h3>
+            <div className="form-group">
+              <label>New Username</label>
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="Enter new username"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') handleUpdateUsername();
+                }}
+              />
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => setShowUsernameModal(false)} className="cancel-btn">
+                Cancel
+              </button>
+              <button onClick={handleUpdateUsername} className="confirm-btn">
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content alert-modal error" onClick={(e) => e.stopPropagation()}>
+            <div className="icon">
+              <FiAlertCircle />
+            </div>
+            <h3>⚠️ Delete Account</h3>
+            <p><strong>This action cannot be undone!</strong></p>
+            <p>All your data will be permanently deleted:</p>
+            <ul className="delete-warning-list">
+              <li>All phone numbers will be released</li>
+              <li>All contacts will be deleted</li>
+              <li>All messages will be deleted</li>
+              <li>All settings will be removed</li>
+            </ul>
+            <div className="form-group">
+              <label>Type <strong>DELETE</strong> to confirm:</label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteConfirmText('');
+              }} className="cancel-btn">
+                Cancel
+              </button>
+              <button onClick={handleDeleteAccount} className="delete-confirm-btn">
+                Delete Forever
               </button>
             </div>
           </div>

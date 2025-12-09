@@ -40,8 +40,56 @@
 
 .profile-member-since {
   color: var(--text-secondary);
-  margin: 0;
+  margin: 0 0 1rem 0;
   font-size: 0.9rem;
+}
+
+.profile-actions-header {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.update-username-btn,
+.delete-account-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.update-username-btn {
+  background: var(--primary-color);
+  color: white;
+}
+
+.update-username-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.delete-account-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.delete-account-btn:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+}
+
+.delete-warning-list {
+  text-align: left;
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  color: var(--text-primary);
+}
+
+.delete-warning-list li {
+  margin: 0.5rem 0;
 }
 
 /* Loading State */

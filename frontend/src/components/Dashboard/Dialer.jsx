@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPhone, FiPhoneOff, FiDelete, FiMic, FiMicOff } from 'react-icons/fi';
+import { FiPhone, FiPhoneOff, FiDelete, FiMic, FiMicOff, FiUser, FiUsers } from 'react-icons/fi';
 import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
 import './Dialer.css';
@@ -7,6 +7,8 @@ import './Dialer.css';
 function Dialer() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [profiles, setProfiles] = useState([]);
+    const [contacts, setContacts] = useState([]);
+    const [showContacts, setShowContacts] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const {
         call,
@@ -22,6 +24,7 @@ function Dialer() {
 
     useEffect(() => {
         loadProfiles();
+        loadContacts();
     }, []);
 
     const loadProfiles = async () => {
@@ -36,6 +39,22 @@ function Dialer() {
         } catch (error) {
             console.error('Failed to load profiles:', error);
         }
+    };
+
+    const loadContacts = async () => {
+        try {
+            const res = await api.get('/contact/get-all');
+            if (res.data.status) {
+                setContacts(res.data.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to load contacts:', error);
+        }
+    };
+
+    const handleContactSelect = (contact) => {
+        setPhoneNumber(contact.number);
+        setShowContacts(false);
     };
 
     const handleNumberClick = (num) => {
@@ -79,11 +98,17 @@ function Dialer() {
 
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
-        const cleaned = phone.replace(/\\D/g, '');
+        const cleaned = phone.replace(/\D/g, '');
         if (cleaned.length === 11 && cleaned.startsWith('1')) {
-            return cleaned.replace(/(\\d{1})(\\d{3})(\\d{3})(\\d{4})/, '+$1 ($2) $3-$4');
+            return cleaned.replace(/(\d{1})(\d{3})(\d{3})(\d{4})/, '+$1 ($2) $3-$4');
         }
         return phone;
+    };
+
+    const getInitials = (contact) => {
+        const first = contact.first_name?.charAt(0) || '';
+        const last = contact.last_name?.charAt(0) || '';
+        return (first + last).toUpperCase() || '?';
     };
 
     const dialPad = [
@@ -106,7 +131,7 @@ function Dialer() {
     return (
         <div className="dialer-container">
             <div className="dialer-header">
-                <h2>Dialer</h2>
+                <h2>☎️ Dialer</h2>
                 {profiles.length > 0 && (
                     <select
                         value={selectedProfile?._id || ''}
@@ -169,12 +194,45 @@ function Dialer() {
                             className="phone-input"
                             disabled={callStatus !== 'idle'}
                         />
-                        {phoneNumber && (
-                            <button onClick={handleDelete} className="delete-btn">
-                                <FiDelete />
+                        <div className="phone-actions">
+                            {phoneNumber && (
+                                <button onClick={handleDelete} className="delete-btn">
+                                    <FiDelete />
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowContacts(!showContacts)}
+                                className="contacts-btn"
+                                title="Select from contacts"
+                            >
+                                <FiUsers />
                             </button>
-                        )}
+                        </div>
                     </div>
+
+                    {showContacts && contacts.length > 0 && (
+                        <div className="contacts-list">
+                            <div className="contacts-list-header">
+                                <h4>Select Contact</h4>
+                                <button onClick={() => setShowContacts(false)}>✕</button>
+                            </div>
+                            {contacts.map((contact) => (
+                                <div
+                                    key={contact._id}
+                                    className="contact-item"
+                                    onClick={() => handleContactSelect(contact)}
+                                >
+                                    <div className="contact-avatar-small">
+                                        {getInitials(contact)}
+                                    </div>
+                                    <div className="contact-item-info">
+                                        <strong>{contact.first_name} {contact.last_name}</strong>
+                                        <span>{formatPhoneNumber(contact.number)}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     <div className="dial-pad">
                         {dialPad.map((row, i) => (

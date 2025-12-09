@@ -79,7 +79,7 @@
 
 .phone-input {
   width: 100%;
-  padding: 1rem 3rem 1rem 1rem;
+  padding: 1rem;
   font-size: 1.5rem;
   text-align: center;
   background: var(--bg-tertiary);
@@ -93,22 +93,140 @@
   cursor: not-allowed;
 }
 
-.delete-btn {
+.phone-actions {
   position: absolute;
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.delete-btn,
+.contacts-btn {
   background: transparent;
   border: none;
   color: var(--text-secondary);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0.5rem;
+  transition: all 0.2s;
 }
 
-.delete-btn:hover {
+.delete-btn:hover,
+.contacts-btn:hover {
+  color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+.contacts-btn {
+  color: var(--primary-color);
+}
+
+/* Contacts List Dropdown */
+.contacts-list {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contacts-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.contacts-list-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.contacts-list-header button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+
+.contacts-list-header button:hover {
   color: var(--text-primary);
 }
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contact-item:hover {
+  background: var(--hover-bg);
+}
+
+.contact-item:last-child {
+  border-bottom: none;
+}
+
+.contact-avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.contact-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.contact-item-info strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.contact-item-info span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
 
 .dial-pad {
   display: flex;

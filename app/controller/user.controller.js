@@ -498,4 +498,21 @@ const deleteAllAccountData = (userid) => {
 }
 
 
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Delete all user data and release Twilio resources
+        const result = await deleteAllAccountData(userId);
+
+        if (result) {
+            res.send({ status: true, message: 'Account deleted successfully. All data and phone numbers have been released.' });
+        } else {
+            res.status(400).json({ status: false, message: 'Failed to delete account' });
+        }
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(400).json({ status: false, message: 'something went wrong' });
+    }
+};
 

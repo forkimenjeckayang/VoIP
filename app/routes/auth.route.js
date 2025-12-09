@@ -11,14 +11,15 @@ module.exports = app => {
     router.post("/get-version", user.getVersionOption);
     router.get("/get-update-version", user.getUpdateVersion);
     router.post("/check-directoryname", user.checkDirectoryName);
-    
+
 
     router.post('/username/update', auth, user.updateUserName);
     router.post('/password/update', auth, user.updatePassword);
     router.post('/password/check', auth, user.checkPassword);
     router.post('/user/get', auth, user.getUser);
-    router.post('/mfa/save', auth, user.saveMfa); 
-    router.post('/password/verify', auth, user.passwordVerify); 
+    router.post('/user/delete', auth, user.deleteAccount);
+    router.post('/mfa/save', auth, user.saveMfa);
+    router.post('/password/verify', auth, user.passwordVerify);
 
     app.use('/api/auth', router);
 };
