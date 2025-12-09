@@ -85,3 +85,27 @@
 .auth-footer a:hover {
   text-decoration: underline;
 }
+
+/* Success State Styles */
+.success-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: #4ade80; /* Success green */
+  animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-box .auth-header {
+  margin-bottom: 3rem;
+}

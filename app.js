@@ -83,8 +83,29 @@ var limiter = new RateLimit({
 
 // apply rate limiter to all requests
 app.use(limiter);
+
+// Socket.IO Authentication Middleware
+const jwt = require('jsonwebtoken');
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    console.log('❌ Socket connection rejected: No token provided');
+    return next(new Error('Authentication error: No token provided'));
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.COOKIE_KEY);
+    socket.user = decoded; // Attach user info to socket
+    console.log('✅ Socket authenticated for user:', decoded.email);
+    next();
+  } catch (err) {
+    console.log('❌ Socket connection rejected: Invalid token');
+    return next(new Error('Authentication error: Invalid token'));
+  }
+});
+
 io.on('connection', socket => {
-  console.log('a user connected');
+  console.log('✅ Socket.io user connected:', socket.user.email);
   socket.on('join_channel', (channel) => {
     console.log(`${channel} user joined channel`);
     socket.join(channel);
@@ -92,6 +113,9 @@ io.on('connection', socket => {
   socket.on('join_profile_channel', (channel) => {
     console.log(`${channel} user joined channel`);
     socket.join(channel);
+  });
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket.io user disconnected:', socket.user.email);
   });
 });
 

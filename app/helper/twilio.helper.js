@@ -20,6 +20,19 @@ const creatTwiml = () => {
             // Singleton: Check if exists first
             const existingApps = await client.applications.list({ friendlyName: appName, limit: 1 });
             if (existingApps.length > 0) {
+                // Update Voice URL to ensure it uses current BASE_URL
+                await client.applications(existingApps[0].sid).update({
+                    voiceMethod: "POST",
+                    voiceUrl: combineURLs(
+                        process.env.BASE_URL.trim(),
+                        "api/call/make-call"
+                    ),
+                    statusCallback: combineURLs(
+                        process.env.BASE_URL.trim(),
+                        "api/call/status"
+                    ),
+                    statusCallbackMethod: "POST",
+                });
                 resolve(existingApps[0].sid);
                 return;
             }

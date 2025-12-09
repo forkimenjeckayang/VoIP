@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { FiCheckCircle } from 'react-icons/fi';
 import api from '../../services/api';
 import './Auth.css';
 
@@ -9,6 +10,7 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -26,8 +28,7 @@ function Register() {
       const res = await api.post('/auth/register', { email, password });
       // Backend returns status as boolean true, not string 'true'
       if (res.data.status === true || res.data.status === 'true') {
-        alert('Account created successfully! Please log in.');
-        navigate('/login');
+        setSuccess(true);
       } else {
         setError(res.data.message || 'Registration failed');
       }
@@ -38,6 +39,28 @@ function Register() {
 
     setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="auth-container">
+        <div className="auth-box success-box">
+          <div className="auth-header">
+            <div className="success-icon">
+              <FiCheckCircle size={64} />
+            </div>
+            <h1>Success!</h1>
+            <p>Your account has been created successfully.</p>
+          </div>
+
+          <div className="auth-form">
+            <button onClick={() => navigate('/login')} className="auth-button">
+              Sign In Now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">
