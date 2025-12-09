@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiPhone, FiMail, FiCheckCircle, FiAlertCircle, FiUser } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiPhone, FiMail, FiCheckCircle, FiAlertCircle, FiUser } from 'react-icons/fi';
 import api from '../../services/api';
 import './Contacts.css';
 import '../shared/Modal.css';
@@ -194,7 +194,7 @@ function Contacts() {
               </div>
               <div className="contact-actions">
                 <button onClick={() => openModal(contact)} className="edit-btn" title="Edit">
-                  <FiEdit2 />
+                  <FiEdit />
                 </button>
                 <button onClick={() => confirmDelete(contact)} className="delete-btn" title="Delete">
                   <FiTrash2 />

@@ -2,6 +2,7 @@ var mongoose = require('../../config/db.config');
 const userSchema = mongoose.Schema({
     sid: String,
     profile: String,
+    number: String,
     emailnotification: {
         type: String,
         enum: ['false', 'true'],

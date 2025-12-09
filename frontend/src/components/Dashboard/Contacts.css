@@ -230,7 +230,14 @@
 
 .edit-btn {
   background: var(--bg-tertiary);
-  color: var(--primary-color);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn svg {
+  stroke: currentColor;
 }
 
 .edit-btn:hover {

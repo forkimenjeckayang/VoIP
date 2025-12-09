@@ -2,38 +2,25 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiMessageSquare, FiUsers, FiSettings, FiLogOut, FiPhone, FiEdit, FiX } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
+import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
 import './Sidebar.css';
 import '../shared/Modal.css';
 
 function Sidebar({ conversations, selectedChat, onSelectChat }) {
   const [activeTab, setActiveTab] = useState('chats');
-  const [profiles, setProfiles] = useState([]);
-  const [selectedProfile, setSelectedProfile] = useState(null);
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [contacts, setContacts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const { user, logout } = useAuth();
+
+  const { selectedProfile } = useVoice();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    loadProfiles();
     loadContacts();
   }, []);
-
-  const loadProfiles = async () => {
-    try {
-      const res = await api.post('/profile/getdata');
-      if (res.data.status) {
-        setProfiles(res.data.data || []);
-        if (res.data.data && res.data.data.length > 0) {
-          setSelectedProfile(res.data.data[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load profiles:', error);
-    }
-  };
 
   const loadContacts = async () => {
     try {
@@ -48,13 +35,29 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
 
   const handleSelectContact = (contact) => {
     // Create a conversation object and select it
-    onSelectChat({
-      phoneNumber: contact.number,
-      name: `${contact.first_name} ${contact.last_name}`,
-      lastMessage: '',
-      timestamp: new Date().toISOString()
-    });
+    let chatData;
+
+    if (contact.isRaw) {
+      // User entered a raw number
+      chatData = {
+        phoneNumber: contact.number,
+        name: contact.number, // No name known yet
+        lastMessage: '',
+        timestamp: new Date().toISOString()
+      };
+    } else {
+      // User selected a known contact
+      chatData = {
+        phoneNumber: contact.number,
+        name: `${contact.first_name} ${contact.last_name}`,
+        lastMessage: '',
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    onSelectChat(chatData);
     setShowNewMessageModal(false);
+    setSearchTerm(''); // Reset search
     navigate('/');
   };
 
@@ -152,29 +155,38 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
                 <small>Click "New" to start messaging</small>
               </div>
             ) : (
-              conversations.map((conv, index) => (
-                <div
-                  key={index}
-                  className={`conversation-item ${selectedChat?.phoneNumber === conv.phoneNumber ? 'active' : ''}`}
-                  onClick={() => onSelectChat(conv)}
-                >
-                  <div className="conversation-avatar">
-                    <FiPhone />
-                  </div>
-                  <div className="conversation-info">
-                    <div className="conversation-header">
-                      <h4>{formatPhoneNumber(conv.phoneNumber)}</h4>
-                      <span className="conversation-time">{formatTime(conv.timestamp)}</span>
+              conversations.map((conv, index) => {
+                // Try to resolve contact name from local contacts list
+                // This covers cases where the message record itself isn't linked to the contact yet
+                const contact = contacts.find(c => c.number === conv.phoneNumber);
+                const displayName = contact
+                  ? `${contact.first_name} ${contact.last_name}`
+                  : (conv.name || formatPhoneNumber(conv.phoneNumber));
+
+                return (
+                  <div
+                    key={index}
+                    className={`conversation-item ${selectedChat?.phoneNumber === conv.phoneNumber ? 'active' : ''}`}
+                    onClick={() => onSelectChat({ ...conv, name: displayName })}
+                  >
+                    <div className="conversation-avatar">
+                      {contact ? getInitials(contact) : (displayName ? displayName[0].toUpperCase() : <FiPhone />)}
                     </div>
-                    <div className="conversation-preview">
-                      <p>{conv.lastMessage}</p>
-                      {conv.unread > 0 && (
-                        <span className="unread-badge">{conv.unread}</span>
-                      )}
+                    <div className="conversation-info">
+                      <div className="conversation-header">
+                        <h4>{displayName}</h4>
+                        <span className="conversation-time">{formatTime(conv.timestamp)}</span>
+                      </div>
+                      <div className="conversation-preview">
+                        <p>{conv.lastMessage}</p>
+                        {conv.unread > 0 && (
+                          <span className="unread-badge">{conv.unread}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </>
@@ -190,25 +202,43 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
                 <FiX />
               </button>
             </div>
-            {contacts.length === 0 ? (
-              <div className="empty-state">
-                <FiUsers size={48} />
-                <p>No contacts yet</p>
-                <small>Add contacts first to start messaging</small>
-                <button
-                  onClick={() => {
-                    setShowNewMessageModal(false);
-                    navigate('/contacts');
-                  }}
-                  className="primary-btn"
-                  style={{ marginTop: '1rem' }}
+
+            <div className="search-box-container" style={{ margin: '15px 0' }}>
+              <input
+                type="text"
+                placeholder="Type a name or phone number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+                autoFocus
+              />
+            </div>
+
+            <div className="contacts-select-list">
+              {/* Option to message the raw number typed if it looks like a number */}
+              {searchTerm.replace(/\D/g, '').length >= 3 && (
+                <div
+                  className="contact-select-item"
+                  onClick={() => handleSelectContact({ number: searchTerm, isRaw: true })}
+                  style={{ borderBottom: '1px dashed #333' }}
                 >
-                  Go to Contacts
-                </button>
-              </div>
-            ) : (
-              <div className="contacts-select-list">
-                {contacts.map((contact) => (
+                  <div className="contact-avatar-small" style={{ background: '#25D366' }}>
+                    <FiPhone />
+                  </div>
+                  <div className="contact-select-info">
+                    <strong>Message Number</strong>
+                    <span>{searchTerm}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Filtered Contacts */}
+              {contacts
+                .filter(c =>
+                  `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  c.number.includes(searchTerm)
+                )
+                .map((contact) => (
                   <div
                     key={contact._id}
                     className="contact-select-item"
@@ -223,8 +253,14 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
+
+              {contacts.length === 0 && !searchTerm && (
+                <div className="empty-state-mini">
+                  <p>No contacts saved.</p>
+                  <small>Type a number above to start chatting.</small>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

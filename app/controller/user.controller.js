@@ -262,25 +262,18 @@ exports.getUpdateVersion = (req, res) => {
 exports.updateUserName = async (req, res) => {
     try {
         let rules = {
-            email: 'required',
+            name: 'required',
         };
         let validation = new Validator(req.body, rules);
         if (validation.passes()) {
-            var user = await User.findOne({ email: { $eq: req.body.email }, _id: { $ne: req.user.id } });
-            if (user) {
-                res.status(400).json({ status: 'false', message: 'username already exists!' });
+            var checkUser = await User.findOne({ _id: { $eq: req.user.id } });
+            if (checkUser) {
+                checkUser.name = req.body.name
+                var saveUser = await checkUser.save()
+                const userDataResponse = userDataResponseGen(checkUser);
+                res.send({ status: true, message: 'Display name updated successfully!', data: userDataResponse });
             } else {
-                // var checkUser = await User.findById(req.user.id);
-                var checkUser = await User.findOne({ _id: { $eq: req.user.id } });
-                if (checkUser) {
-                    checkUser.email = req.body.email
-                    checkUser.name = req.body.email
-                    var saveEmail = await checkUser.save()
-                    const userDataResponse = userDataResponseGen(checkUser);
-                    res.send({ status: true, message: 'username updated successfully!', data: userDataResponse });
-                } else {
-                    res.status(400).json({ status: 'false', message: 'User not found!' });
-                }
+                res.status(400).json({ status: 'false', message: 'User not found!' });
             }
         } else {
             res.status(419).send({ status: false, errors: validation.errors, data: [] });

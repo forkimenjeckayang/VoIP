@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheckCircle, FiAlertCircle, FiMessageSquare, FiActivity, FiClock, FiTrendingUp } from 'react-icons/fi';
+import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheckCircle, FiAlertCircle, FiMessageSquare, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
@@ -179,25 +179,25 @@ function Settings() {
 
   const handleUpdateUsername = async () => {
     if (!newUsername.trim()) {
-      showAlert('error', 'Please enter a new username');
+      showAlert('error', 'Please enter a display name');
       return;
     }
 
     try {
       const res = await api.post('/auth/username/update', {
-        name: newUsername
+        name: newUsername.trim()
       });
 
       if (res.data.status) {
-        showAlert('success', '✨ Username updated successfully!');
+        showAlert('success', '✨ Display name updated successfully!');
         setShowUsernameModal(false);
         setNewUsername('');
         // Reload user data
         window.location.reload();
       }
     } catch (error) {
-      console.error('Failed to update username:', error);
-      showAlert('error', error.response?.data?.message || 'Failed to update username');
+      console.error('Failed to update display name:', error);
+      showAlert('error', error.response?.data?.message || 'Failed to update display name');
     }
   };
 
@@ -236,7 +236,8 @@ function Settings() {
           {getInitials(user?.email)}
         </div>
         <div className="profile-header-info">
-          <h2>{user?.email}</h2>
+          <h2>{user?.name || user?.email}</h2>
+          <p className="profile-email">{user?.email}</p>
           <p className="profile-member-since">
             Member since {new Date(user?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </p>
@@ -245,7 +246,7 @@ function Settings() {
               setNewUsername(user?.name || '');
               setShowUsernameModal(true);
             }} className="update-username-btn">
-              ✏️ Update Username
+              ✏️ Update Display Name
             </button>
             <button onClick={() => setShowDeleteModal(true)} className="delete-account-btn">
               🗑️ Delete Account
@@ -438,7 +439,7 @@ function Settings() {
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="e.g., Personal, Work, Business"
                 autoFocus
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') handleAddNumber();
                 }}
               />
@@ -480,19 +481,22 @@ function Settings() {
       {showUsernameModal && (
         <div className="modal-overlay" onClick={() => setShowUsernameModal(false)}>
           <div className="modal-content profile-name-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>✏️ Update Username</h3>
+            <h3>✏️ Update Display Name</h3>
             <div className="form-group">
-              <label>New Username</label>
+              <label>Display Name</label>
               <input
                 type="text"
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
-                placeholder="Enter new username"
+                placeholder="Enter your display name"
                 autoFocus
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') handleUpdateUsername();
                 }}
               />
+              <small style={{ color: '#888', marginTop: '4px', display: 'block' }}>
+                This is how your name will be displayed. Your email remains {user?.email}
+              </small>
             </div>
             <div className="modal-actions">
               <button onClick={() => setShowUsernameModal(false)} className="cancel-btn">

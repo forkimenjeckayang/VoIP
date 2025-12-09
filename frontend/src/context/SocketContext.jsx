@@ -30,7 +30,8 @@ export const SocketProvider = ({ children }) => {
     console.log('🔌 Attempting Socket.io connection...');
 
     // Connect to backend socket server
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    // Use relative path to leverage Vite proxy in development
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || '';
     const newSocket = io(socketUrl, {
       auth: { token },
       transports: ['polling', 'websocket'],

@@ -13,6 +13,15 @@ export const VoiceProvider = ({ children }) => {
     const { user } = useAuth();
 
     useEffect(() => {
+        if (user) {
+            // Auto-load profile if none selected
+            if (!selectedProfile) {
+                loadDefaultProfile();
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
         if (user && selectedProfile) {
             initializeDevice();
         }
@@ -23,6 +32,18 @@ export const VoiceProvider = ({ children }) => {
             }
         };
     }, [user, selectedProfile]);
+
+    const loadDefaultProfile = async () => {
+        try {
+            const res = await api.post('/profile/getdata');
+            if (res.data.status && res.data.data && res.data.data.length > 0) {
+                console.log('VoiceContext: Auto-selecting profile', res.data.data[0]);
+                setSelectedProfile(res.data.data[0]);
+            }
+        } catch (error) {
+            console.error('VoiceContext: Failed to load default profile', error);
+        }
+    };
 
     const initializeDevice = async () => {
         try {

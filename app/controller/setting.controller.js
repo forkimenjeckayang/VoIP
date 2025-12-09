@@ -254,9 +254,18 @@ exports.sendSms = async (req, res) => {
           if (sendNumber == 10) {
             toNumber = `+1${toNumber}`;
           }
+
+          // STRICT: Only use the configured number from the database.
+          // The profile creation/assignment logic MUST ensure this field is populated.
+          const fromNumber = settingCheck.number;
+
+          if (!fromNumber) {
+            return res.status(400).json({ status: "false", message: "Sender number not configured for this profile. Please delete and recreate the profile." });
+          }
+
           var twilioParams = {
             body: req.body.message,
-            from: settingCheck.number,
+            from: fromNumber,
             to: toNumber,
             statusCallback: combineURLs(
               process.env.BASE_URL.trim(),
@@ -582,21 +591,54 @@ exports.messageDelete = async (req, res) => {
 
 exports.messageList = async (req, res) => {
   try {
-    var filterObject = {
-      user: { $eq: req.body.user },
-      twilio_number: { $eq: req.body.number.twilio_number },
-      number: { $eq: req.body.number._id },
-      setting: { $eq: req.body.profile },
-    };
+    let filterObject;
 
+    if (req.body.phoneNumber) {
+      // Corrected Query Logic:
+      // In Message Model:
+      // 'number' = The external contact's number (usually)
+      // 'twilio_number' = Our Twilio number (usually)
+      // However, for incoming/outgoing, these might flip or store consistently.
+      // Based on sendSms: number=To (Recipient), twilio_number=From (Us).
+      // Based on receiveSms: number=From (Sender/Contact), twilio_number=To (Us).
+
+      // So 'number' ALWAYS seems to be the CONTACT'S number (the other party).
+      // And 'twilio_number' ALWAYS seems to be OUR number.
+
+      // So if req.body.phoneNumber is the CONTACT'S number, we just need to search `number`.
+      // But just to be safe and cover all bases (in case data is mixed), we check both.
+
+      filterObject = {
+        user: { $eq: req.user.id },
+        $or: [
+          { number: { $eq: req.body.phoneNumber } },
+          { twilio_number: { $eq: req.body.phoneNumber } },
+          // Also check 'from'/'to' just in case of any legacy data or future migration
+          { from: { $eq: req.body.phoneNumber } },
+          { to: { $eq: req.body.phoneNumber } }
+        ]
+      };
+    } else {
+      // Old format for backward compatibility
+      filterObject = {
+        user: { $eq: req.body.user },
+        twilio_number: { $eq: req.body.number.twilio_number },
+        number: { $eq: req.body.number._id },
+        setting: { $eq: req.body.profile },
+      };
+    }
+
+    // Mark as read
     await Message.updateMany(
       { ...filterObject, isview: { $eq: "false" } },
       { isview: "true" }
     );
-    var messages = await Message.find(filterObject);
 
-    res.send(messages);
+    var messages = await Message.find(filterObject).sort({ created_at: 1 }); // Note: updated to created_at from createdAt to match schema
+
+    res.send({ status: 'true', data: messages });
   } catch (error) {
+    console.error('Message list error:', error);
     res.status(400).json({ status: "false", message: "something went wrong" });
   }
 };

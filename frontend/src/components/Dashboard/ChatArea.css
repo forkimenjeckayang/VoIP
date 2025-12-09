@@ -57,15 +57,22 @@
   background: var(--hover-bg);
 }
 
-.chat-contact-info {
+.header-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex: 1;
   cursor: pointer;
+  transition: opacity 0.2s;
+  min-width: 0;
+  /* Allows text truncation to work in children */
 }
 
-.chat-avatar {
+.header-info:hover {
+  opacity: 0.8;
+}
+
+.header-avatar {
   width: 45px;
   height: 45px;
   border-radius: 50%;
@@ -75,23 +82,29 @@
   justify-content: center;
   font-size: 1.2rem;
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
-.chat-contact-info h3 {
+.header-info h3 {
   font-size: 0.95rem;
   color: var(--text-primary);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.chat-contact-info p {
+.header-status {
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin: 0;
+  display: block;
 }
 
-.chat-actions {
+.header-actions {
   display: flex;
   gap: 0.5rem;
+  margin-left: 1rem;
 }
 
 .icon-btn {
@@ -138,6 +151,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -157,6 +171,8 @@
   padding: 0.6rem 0.9rem;
   border-radius: 8px;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .message.incoming .message-content {
@@ -184,11 +200,12 @@
 }
 
 .message-time {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-top: 0.3rem;
-  display: block;
-  text-align: right;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
+  /* Lighter text for time inside bubble */
+  margin-top: 0.2rem;
+  align-self: flex-end;
+  /* Pushes time to the right */
 }
 
 .message-input-container {
@@ -239,8 +256,124 @@
   .back-btn {
     display: flex;
   }
-  
+
   .message-content {
     max-width: 80%;
   }
+}
+
+/* Contact Info Modal */
+.contact-info-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.modal-header-inline h3 {
+  margin: 0;
+}
+
+.close-btn-inline {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn-inline:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.contact-details-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.contact-avatar-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 500;
+}
+
+.contact-info-section {
+  width: 100%;
+  text-align: center;
+}
+
+.contact-info-section h4 {
+  font-size: 1.5rem;
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.info-row svg {
+  color: var(--text-secondary);
+  min-width: 20px;
+}
+
+.info-row span {
+  flex: 1;
+  word-break: break-all;
+}
+
+.note-row {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.note-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.date-separator {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 1rem;
+}
+
+.date-separator span {
+  background-color: rgba(255, 255, 255, 0.1);
+  /* Subtle dark mode specific background */
+  color: var(--text-secondary);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
