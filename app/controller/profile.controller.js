@@ -57,8 +57,27 @@ exports.getProfile = async (req, res) => {
         }).populate({
             path: 'totalCount',
             match: { isview: 'false' }
-        })
-        res.send({ status: true, message: 'Profile data!', data: getData });
+        });
+
+        // Enrich with phone numbers from Twilio
+        const enrichedData = await Promise.all(getData.map(async (setting) => {
+            const settingObj = setting.toObject();
+            if (setting.sid) {
+                try {
+                    const twilioNumber = await twilioHelper.numberGet({ numbersid: setting.sid });
+                    if (twilioNumber) {
+                        settingObj.phoneNumber = twilioNumber.phoneNumber;
+                        settingObj.friendlyName = twilioNumber.friendlyName;
+                        settingObj.country = twilioNumber.isoCountry;
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch Twilio number:', error);
+                }
+            }
+            return settingObj;
+        }));
+
+        res.send({ status: true, message: 'Profile data!', data: enrichedData });
     } catch (error) {
         res.status(400).json({ status: 'false', message: 'something is wrong' });
     }

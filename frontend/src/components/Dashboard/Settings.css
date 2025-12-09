@@ -15,6 +15,63 @@
   margin: 0;
 }
 
+/* Active Profile Banner */
+.active-profile-banner {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 6px 20px rgba(0, 168, 132, 0.3);
+  animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.active-profile-banner .check-icon {
+  font-size: 2.5rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.active-profile-banner .active-info {
+  flex: 1;
+  color: white;
+}
+
+.active-profile-banner .active-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.active-profile-banner .profile-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem 0;
+}
+
+.active-profile-banner .phone-number {
+  font-size: 1.1rem;
+  opacity: 0.95;
+  margin: 0;
+}
+
 .settings-section {
   margin-bottom: 2.5rem;
 }
@@ -85,13 +142,34 @@
 
 .profile-card {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.profile-card.active {
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(0, 168, 132, 0.1) 0%, rgba(0, 143, 111, 0.1) 100%);
+  box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2);
+}
+
+.profile-card.active::before {
+  content: 'ACTIVE';
+  position: absolute;
+  top: -10px;
+  right: 1rem;
+  background: var(--primary-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .profile-card:hover {
@@ -110,6 +188,11 @@
   font-size: 1.3rem;
   color: var(--primary-color);
   flex-shrink: 0;
+}
+
+.profile-card.active .profile-icon {
+  background: var(--primary-color);
+  color: white;
 }
 
 .profile-info {
@@ -138,6 +221,26 @@
   margin-top: 0.5rem;
 }
 
+.profile-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.set-active-btn {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+}
+
+.set-active-btn:hover {
+  background: var(--primary-hover);
+}
+
 .delete-profile-btn {
   background: transparent;
   color: #ef4444;
@@ -147,10 +250,19 @@
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
+  border: none;
 }
 
 .delete-profile-btn:hover {
   background: rgba(239, 68, 68, 0.1);
+}
+
+/* Modal Specific Styles */
+.number-preview {
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 1rem 0 0 0;
+  font-size: 0.95rem;
 }
 
 .numbers-list {
@@ -167,6 +279,11 @@
   background: var(--bg-tertiary);
   border-radius: 8px;
   margin-bottom: 0.75rem;
+  transition: background 0.2s;
+}
+
+.number-item:hover {
+  background: var(--hover-bg);
 }
 
 .number-item strong {
@@ -215,5 +332,19 @@
 
   .balance-amount {
     font-size: 2.5rem;
+  }
+
+  .active-profile-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .set-active-btn {
+    width: 100%;
   }
 }

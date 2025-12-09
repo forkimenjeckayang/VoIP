@@ -1,0 +1,130 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-content h3 {
+    color: var(--text-primary);
+    margin: 0 0 1.5rem 0;
+    font-size: 1.5rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.modal-actions button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cancel-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.cancel-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--text-secondary);
+}
+
+.confirm-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.confirm-btn:hover {
+    background: var(--primary-hover);
+}
+
+/* Profile Name Input Modal */
+.profile-name-modal .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.profile-name-modal label {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.profile-name-modal input {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.profile-name-modal input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* Alert Modal */
+.alert-modal {
+    text-align: center;
+}
+
+.alert-modal p {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    margin: 1rem 0;
+}
+
+.alert-modal .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.alert-modal.success .icon {
+    color: var(--primary-color);
+}
+
+.alert-modal.error .icon {
+    color: #dc3545;
+}
