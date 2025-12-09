@@ -1,0 +1,309 @@
+.dialer-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+}
+
+.dialer-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.dialer-header h2 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin: 0 0 1rem 0;
+}
+
+.profile-select {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.profile-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.call-status {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.status-text {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin: 0;
+}
+
+.status-text.connecting {
+  color: #FFA500;
+}
+
+.status-text.ringing {
+  color: #00A8FF;
+  animation: pulse 1s infinite;
+}
+
+.status-text.active {
+  color: var(--primary-color);
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.phone-display {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.phone-input {
+  width: 100%;
+  padding: 1rem 3rem 1rem 1rem;
+  font-size: 1.5rem;
+  text-align: center;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+
+.phone-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.delete-btn:hover {
+  color: var(--text-primary);
+}
+
+.dial-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+.dial-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.dial-button {
+  width: 70px;
+  height: 70px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dial-button:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.dial-button:active {
+  transform: scale(0.95);
+}
+
+.dial-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.call-button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.call-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: scale(1.02);
+}
+
+.call-button:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+/* Incoming Call */
+.incoming-call {
+  text-align: center;
+  padding: 2rem;
+}
+
+.incoming-call h3 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.incoming-call p {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+}
+
+.call-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.accept-btn,
+.reject-btn {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.accept-btn {
+  background: var(--primary-color);
+  color: white;
+}
+
+.accept-btn:hover {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+.reject-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.reject-btn:hover {
+  background: #c82333;
+  transform: scale(1.05);
+}
+
+/* Active Call */
+.active-call {
+  text-align: center;
+  padding: 2rem;
+}
+
+.active-call h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.active-call p {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+}
+
+.call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.mute-btn {
+  width: 60px;
+  height: 60px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: all 0.2s;
+}
+
+.mute-btn:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.mute-btn.muted {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.hangup-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.hangup-btn:hover {
+  background: #c82333;
+  transform: scale(1.02);
+}

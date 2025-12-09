@@ -72,7 +72,7 @@ db.once('open', function () {
 });
 
 //app.use(cors());
-app.use(cors({ origin: ['http://localhost:8080'], }))
+app.use(cors({ origin: ['http://localhost:8080', 'http://localhost:5173'], }))
 
 var limiter = new RateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
