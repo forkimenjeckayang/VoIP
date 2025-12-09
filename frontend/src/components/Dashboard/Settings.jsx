@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheck, FiX, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheckCircle, FiAlertCircle, FiMessageSquare, FiActivity, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
@@ -11,6 +11,7 @@ function Settings() {
   const { selectedProfile, setSelectedProfile } = useVoice();
   const [profiles, setProfiles] = useState([]);
   const [balance, setBalance] = useState(null);
+  const [stats, setStats] = useState({ messages: 0, calls: 0, uptime: '0 days' });
   const [availableNumbers, setAvailableNumbers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNumberModal, setShowNumberModal] = useState(false);
@@ -23,7 +24,18 @@ function Settings() {
 
   useEffect(() => {
     loadData();
+    calculateStats();
   }, []);
+
+  const calculateStats = () => {
+    // Calculate account uptime
+    if (user?.created_at) {
+      const created = new Date(user.created_at);
+      const now = new Date();
+      const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+      setStats(prev => ({ ...prev, uptime: `${diffDays} days` }));
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -107,7 +119,7 @@ function Settings() {
       });
 
       if (res.data.status) {
-        showAlert('success', 'Number added successfully!');
+        showAlert('success', '✨ Number added successfully!');
         setShowProfileNameModal(false);
         setProfileName('');
         await loadProfiles();
@@ -144,7 +156,7 @@ function Settings() {
 
   const handleSetActive = (profile) => {
     setSelectedProfile(profile);
-    showAlert('success', `${profile.profile} is now active`);
+    showAlert('success', `${profile.profile} is now active ✨`);
   };
 
   const formatPhoneNumber = (phone) => {
@@ -161,14 +173,31 @@ function Settings() {
     loadAvailableNumbers();
   };
 
+  const getInitials = (email) => {
+    if (!email) return '?';
+    return email.charAt(0).toUpperCase();
+  };
+
   return (
     <div className="settings-container">
-      <div className="settings-header">
-        <h2>Settings</h2>
+      {/* Profile Header */}
+      <div className="profile-header">
+        <div className="profile-avatar-large">
+          {getInitials(user?.email)}
+        </div>
+        <div className="profile-header-info">
+          <h2>{user?.email}</h2>
+          <p className="profile-member-since">
+            Member since {new Date(user?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </p>
+        </div>
       </div>
 
       {loading ? (
-        <div className="loading-state">Loading...</div>
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading your settings...</p>
+        </div>
       ) : (
         <>
           {/* Active Profile Banner */}
@@ -183,6 +212,37 @@ function Settings() {
             </div>
           )}
 
+          {/* Stats Grid */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon messages">
+                <FiMessageSquare />
+              </div>
+              <div className="stat-content">
+                <h4>Messages</h4>
+                <p className="stat-value">{stats.messages}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon calls">
+                <FiPhone />
+              </div>
+              <div className="stat-content">
+                <h4>Calls</h4>
+                <p className="stat-value">{stats.calls}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon uptime">
+                <FiClock />
+              </div>
+              <div className="stat-content">
+                <h4>Uptime</h4>
+                <p className="stat-value">{stats.uptime}</p>
+              </div>
+            </div>
+          </div>
+
           <div className="settings-section">
             <div className="section-header">
               <h3><FiDollarSign /> Account Balance</h3>
@@ -192,12 +252,15 @@ function Settings() {
                 ${balance !== null ? balance : '-.--'}
               </div>
               <p>Twilio Account Balance</p>
+              <div className="balance-indicator">
+                <FiTrendingUp /> <span>Active</span>
+              </div>
             </div>
           </div>
 
           <div className="settings-section">
             <div className="section-header">
-              <h3><FiPhone /> Your Numbers</h3>
+              <h3><FiPhone /> Your Phone Numbers</h3>
               <button onClick={openNumberModal} className="add-number-btn">
                 <FiPlus /> Add Number
               </button>
@@ -205,8 +268,14 @@ function Settings() {
 
             {profiles.length === 0 ? (
               <div className="empty-profiles">
-                <p>No phone numbers configured yet</p>
-                <button onClick={openNumberModal}>Add your first number</button>
+                <div className="empty-icon">
+                  <FiPhone />
+                </div>
+                <h4>No phone numbers yet</h4>
+                <p>Add your first Twilio number to start making calls and sending messages</p>
+                <button onClick={openNumberModal} className="primary-btn">
+                  <FiPlus /> Add Your First Number
+                </button>
               </div>
             ) : (
               <div className="profiles-list">
@@ -222,7 +291,7 @@ function Settings() {
                       <h4>{profile.profile}</h4>
                       <p>{formatPhoneNumber(profile.phoneNumber)}</p>
                       {profile.country && (
-                        <span className="profile-country">{profile.country}</span>
+                        <span className="profile-country">🌍 {profile.country}</span>
                       )}
                     </div>
                     <div className="profile-actions">
@@ -255,12 +324,18 @@ function Settings() {
       {showNumberModal && (
         <div className="modal-overlay" onClick={() => setShowNumberModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Available Numbers</h3>
+            <h3>📱 Available Numbers</h3>
             {loadingNumbers ? (
-              <div className="loading-state">Loading available numbers...</div>
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Loading available numbers...</p>
+              </div>
             ) : availableNumbers.length === 0 ? (
               <div className="empty-state">
-                <p>No available numbers found in your Twilio account</p>
+                <div className="empty-icon">
+                  <FiPhone />
+                </div>
+                <p>No available numbers found</p>
                 <small>Purchase numbers from your Twilio console first</small>
               </div>
             ) : (
@@ -273,7 +348,7 @@ function Settings() {
                         <p className="number-friendly">{number.friendlyName}</p>
                       )}
                     </div>
-                    <button onClick={() => handleNumberClick(number)}>
+                    <button onClick={() => handleNumberClick(number)} className="primary-btn">
                       Add
                     </button>
                   </div>
@@ -293,7 +368,7 @@ function Settings() {
       {showProfileNameModal && (
         <div className="modal-overlay" onClick={() => setShowProfileNameModal(false)}>
           <div className="modal-content profile-name-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Name Your Profile</h3>
+            <h3>✨ Name Your Profile</h3>
             <div className="form-group">
               <label>Profile Name</label>
               <input
@@ -308,7 +383,7 @@ function Settings() {
               />
             </div>
             <p className="number-preview">
-              Number: {formatPhoneNumber(selectedNumber?.phoneNumber)}
+              📞 Number: {formatPhoneNumber(selectedNumber?.phoneNumber)}
             </p>
             <div className="modal-actions">
               <button onClick={() => setShowProfileNameModal(false)} className="cancel-btn">
