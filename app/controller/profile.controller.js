@@ -87,7 +87,8 @@ exports.deleteProfile = async (req, res) => {
         var settingCheck = await Setting.findOne({ _id: { $eq: req.body.profile_id } })
 
         if (settingCheck) {
-            await Message.deleteMany({ setting: settingCheck._id })
+            // DON'T delete messages - keep chat history even after profile deletion
+            // await Message.deleteMany({ setting: settingCheck._id })
 
             // SaaS Cleanup Resources
             if (settingCheck.app_key) {
@@ -102,7 +103,16 @@ exports.deleteProfile = async (req, res) => {
             }
 
             await Setting.deleteOne({ _id: { $eq: req.body.profile_id } })
-            res.send({ status: true, message: 'Profile deleted and number released successfully!', data: settingCheck });
+            
+            // Emit socket event to notify frontend of profile deletion
+            if (global.io && settingCheck.user) {
+                global.io.to(settingCheck.user.toString()).emit('profile_deleted', {
+                    profile_id: req.body.profile_id,
+                    user: settingCheck.user
+                });
+            }
+            
+            res.send({ status: true, message: 'Profile deleted and number released successfully! Messages are preserved.', data: settingCheck });
         } else {
             res.status(400).json({ status: 'false', message: 'Profile not found!' });
         }

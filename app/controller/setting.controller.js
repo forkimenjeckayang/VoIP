@@ -48,9 +48,17 @@ exports.deleteKey = async (req, res) => {
     // Let's delete the record.
     await Setting.deleteOne({ _id: settingCheck._id });
 
+    // Emit socket event to notify frontend of profile/number deletion
+    if (global.io && settingCheck.user) {
+        global.io.to(settingCheck.user.toString()).emit('profile_deleted', {
+            profile_id: settingCheck._id,
+            user: settingCheck.user
+        });
+    }
+
     res.send({
       status: true,
-      message: "Number released and setting deleted!",
+      message: "Number released and setting deleted! Messages are preserved.",
       data: [],
     });
 
@@ -313,6 +321,47 @@ exports.sendSms = async (req, res) => {
         }
         var messages = await Message.create(arrMessageData);
         if (messages) {
+          // Emit socket events for each sent message
+          // Use req.user.id from JWT token (matches socket channel) or fallback to req.body.user
+          const userId = (req.user?.id || req.body.user)?.toString ? (req.user?.id || req.body.user).toString() : (req.user?.id || req.body.user);
+          console.log('📤 Emitting new_message to user:', userId);
+          if (Array.isArray(messages)) {
+            messages.forEach((msg) => {
+              const messageData = {
+                _id: msg._id,
+                number: msg.number,
+                twilio_number: msg.twilio_number,
+                type: msg.type,
+                message: msg.message,
+                body: msg.message, // Also include 'body' for frontend compatibility
+                direction: 'outbound',
+                status: msg.status,
+                created_at: msg.created_at,
+                timestamp: msg.created_at,
+                user: msg.user,
+                setting: msg.setting
+              };
+              console.log('📤 Emitting message data:', messageData);
+              global.io.to(userId).emit('new_message', messageData);
+            });
+          } else {
+            // Single message (shouldn't happen with array, but just in case)
+            global.io.to(userId).emit('new_message', {
+              _id: messages._id,
+              number: messages.number,
+              twilio_number: messages.twilio_number,
+              type: messages.type,
+              message: messages.message,
+              body: messages.message,
+              direction: 'outbound',
+              status: messages.status,
+              created_at: messages.created_at,
+              timestamp: messages.created_at,
+              user: messages.user,
+              setting: messages.setting
+            });
+          }
+          
           res.send({
             status: true,
             message: "Message sent successfully!",
@@ -421,6 +470,8 @@ exports.receiveSms = async (req, res) => {
         }
       }
 
+      // Emit new_message event for incoming messages (before saving to DB)
+      // This will be emitted again after saving with the full message object
       global.io.to(settingCheck.user.toString()).emit("user_message", {
         message: messageText,
         number: fromnumber,
@@ -456,6 +507,29 @@ exports.receiveSms = async (req, res) => {
       // global.io.to(settingCheck.number).emit('new_message',{message: messageText, number:fromnumber});
       let messageSavedResponse = await Message.create(messageData2);
       console.log("messageSavedResponse ===:", messageSavedResponse);
+      
+      // Emit new_message event for incoming messages (after saving to DB)
+      // Ensure user ID format matches socket channel (could be ObjectId or string)
+      if (messageSavedResponse) {
+        const userId = settingCheck.user?.toString ? settingCheck.user.toString() : settingCheck.user;
+        console.log('📥 Emitting new_message (incoming) to user:', userId);
+        const messageData = {
+          _id: messageSavedResponse._id,
+          number: messageSavedResponse.number,
+          twilio_number: messageSavedResponse.twilio_number,
+          type: messageSavedResponse.type,
+          message: messageSavedResponse.message,
+          body: messageSavedResponse.message, // Also include 'body' for frontend compatibility
+          direction: 'inbound',
+          status: messageSavedResponse.status,
+          created_at: messageSavedResponse.created_at,
+          timestamp: messageSavedResponse.created_at,
+          user: messageSavedResponse.user,
+          setting: messageSavedResponse.setting
+        };
+        console.log('📥 Emitting message data:', messageData);
+        global.io.to(userId).emit('new_message', messageData);
+      }
     }
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
@@ -578,6 +652,15 @@ exports.messageDelete = async (req, res) => {
     };
     var messages = await Message.deleteMany(deletecon);
     if (messages) {
+      // Emit socket event to notify frontend of message deletion
+      const userId = req.user?.id || req.body.user;
+      if (global.io && userId) {
+        global.io.to(userId.toString()).emit('messages_deleted', {
+          user: userId,
+          number: req.body.number
+        });
+      }
+      
       res.status(200).send({ status: true, errors: "", data: messages });
     } else {
       res

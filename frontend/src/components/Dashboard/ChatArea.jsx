@@ -39,18 +39,52 @@ function ChatArea({ selectedChat, onBack }) {
 
   useEffect(() => {
     if (socket && selectedChat) {
-      socket.on('new_message', (message) => {
-        if (message.from === selectedChat.phoneNumber || message.to === selectedChat.phoneNumber) {
-          setMessages(prev => [...prev, message]);
+      const handleNewMessage = (message) => {
+        console.log('📨 Received new_message socket event:', message);
+        // Check if message is for this chat (compare with contact's phone number)
+        // Message.number is the contact's number, message.twilio_number is our number
+        const isForThisChat = 
+          message.number === selectedChat.phoneNumber || 
+          message.twilio_number === selectedChat.phoneNumber ||
+          message.from === selectedChat.phoneNumber || 
+          message.to === selectedChat.phoneNumber;
+        
+        if (isForThisChat) {
+          // Check if message already exists (prevent duplicates)
+          setMessages(prev => {
+            const exists = prev.some(msg => 
+              msg._id === message._id || 
+              (msg.message === message.message && 
+               msg.created_at === message.created_at)
+            );
+            if (exists) {
+              console.log('⚠️ Duplicate message detected, skipping');
+              return prev;
+            }
+            console.log('✅ Adding new message to chat');
+            return [...prev, message];
+          });
         }
-      });
-    }
+      };
 
-    return () => {
-      if (socket) {
-        socket.off('new_message');
-      }
-    };
+      const handleMessagesDeleted = (data) => {
+        console.log('🗑️ Received messages_deleted socket event:', data);
+        if (data.number === selectedChat.phoneNumber) {
+          // Reload messages if current chat was deleted
+          loadMessages();
+        }
+      };
+
+      socket.on('new_message', handleNewMessage);
+      socket.on('messages_deleted', handleMessagesDeleted);
+
+      return () => {
+        if (socket) {
+          socket.off('new_message', handleNewMessage);
+          socket.off('messages_deleted', handleMessagesDeleted);
+        }
+      };
+    }
   }, [socket, selectedChat]);
 
   const scrollToBottom = () => {
@@ -84,7 +118,7 @@ function ChatArea({ selectedChat, onBack }) {
     try {
       const res = await api.post('/setting/message-list', {
         phoneNumber: selectedChat.phoneNumber,
-        user: user.id // Pass user ID if needed, though usually implicit in token, but let's be safe
+        user: user.id || user._id // Pass user ID if needed, though usually implicit in token, but let's be safe
       });
 
       if (res.data.status === 'true') {
@@ -121,14 +155,8 @@ function ChatArea({ selectedChat, onBack }) {
       const res = await api.post('/setting/send-sms', payload);
 
       if (res.data.status === true || res.data.status === 'true') {
-        const sentMessage = {
-          body: newMessage,
-          to: selectedChat.phoneNumber,
-          from: 'me',
-          timestamp: new Date().toISOString(),
-          direction: 'outbound'
-        };
-        setMessages(prev => [...prev, sentMessage]);
+        // Don't add message locally - wait for socket event from backend
+        // This ensures consistency and prevents duplicates
         setNewMessage('');
         setError(''); // Clear any previous errors on successful send
       } else {

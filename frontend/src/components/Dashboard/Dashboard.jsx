@@ -19,14 +19,41 @@ function Dashboard() {
   const { selectedProfile } = useVoice();
 
   useEffect(() => {
-    if (selectedProfile) {
-      loadConversations();
-    }
+    // Load conversations even without selectedProfile - messages should still be viewable
+    // Only sending requires a profile
+    loadConversations();
   }, [selectedProfile]);
+
+  // Listen for profile deletion events
+  useEffect(() => {
+    if (socket) {
+      const handleProfileDeleted = () => {
+        // Reload conversations when profile is deleted
+        loadConversations();
+      };
+
+      socket.on('profile_deleted', handleProfileDeleted);
+
+      return () => {
+        if (socket) {
+          socket.off('profile_deleted', handleProfileDeleted);
+        }
+      };
+    }
+  }, [socket]);
 
   const loadConversations = async () => {
     try {
-      if (!user || !selectedProfile) return;
+      if (!user) return;
+      
+      // If no profile selected, load all conversations for the user
+      if (!selectedProfile) {
+        // Load conversations without profile filter - show all messages
+        // We'll need to modify the endpoint or use a different approach
+        // For now, just return empty if no profile
+        setConversations([]);
+        return;
+      }
 
       const res = await api.post('/setting/sms-number-list', {
         user: user.id || user._id,
@@ -58,22 +85,27 @@ function Dashboard() {
         setConversations(prev => {
           const updated = [...prev];
           // Determine the other party's number
-          const otherParty = message.direction === 'outbound' ? message.to : message.from;
+          // For outbound: number is the recipient (contact's number)
+          // For inbound: number is the sender (contact's number)
+          const otherParty = message.number || message.from || message.to;
+          const isOutbound = message.direction === 'outbound' || message.type === 'send';
 
-          const index = updated.findIndex(c => c.phoneNumber === otherParty);
-          if (index >= 0) {
-            updated[index].lastMessage = message.body || message.message;
-            updated[index].timestamp = message.timestamp || new Date().toISOString();
-            if (message.direction !== 'outbound') {
-              updated[index].unread = (updated[index].unread || 0) + 1;
+          if (otherParty) {
+            const index = updated.findIndex(c => c.phoneNumber === otherParty);
+            if (index >= 0) {
+              updated[index].lastMessage = message.body || message.message;
+              updated[index].timestamp = message.timestamp || message.created_at || new Date().toISOString();
+              if (!isOutbound) {
+                updated[index].unread = (updated[index].unread || 0) + 1;
+              }
+            } else {
+              updated.unshift({
+                phoneNumber: otherParty,
+                lastMessage: message.body || message.message,
+                timestamp: message.timestamp || message.created_at || new Date().toISOString(),
+                unread: !isOutbound ? 1 : 0
+              });
             }
-          } else {
-            updated.unshift({
-              phoneNumber: otherParty,
-              lastMessage: message.body || message.message,
-              timestamp: message.timestamp || new Date().toISOString(),
-              unread: message.direction !== 'outbound' ? 1 : 0
-            });
           }
           return updated;
         });

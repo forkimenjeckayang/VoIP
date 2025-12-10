@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheckCircle, FiAlertCircle, FiMessageSquare, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
+import { useSocket } from '../../context/SocketContext';
 import api from '../../services/api';
 import './Settings.css';
 import '../shared/Modal.css';
@@ -9,6 +10,7 @@ import '../shared/Modal.css';
 function Settings() {
   const { user } = useAuth();
   const { selectedProfile, setSelectedProfile } = useVoice();
+  const socket = useSocket();
   const [profiles, setProfiles] = useState([]);
   const [balance, setBalance] = useState(null);
   const [stats, setStats] = useState({ messages: 0, calls: 0, uptime: '0 days' });
@@ -30,6 +32,29 @@ function Settings() {
     loadData();
     calculateStats();
   }, []);
+
+  // Listen for profile deletion events from socket
+  useEffect(() => {
+    if (socket) {
+      const handleProfileDeleted = (data) => {
+        console.log('🗑️ Profile deleted via socket:', data);
+        // Reload profiles to reflect deletion
+        loadProfiles();
+        // If deleted profile was selected, clear selection
+        if (selectedProfile?._id === data.profile_id) {
+          setSelectedProfile(null);
+        }
+      };
+
+      socket.on('profile_deleted', handleProfileDeleted);
+
+      return () => {
+        if (socket) {
+          socket.off('profile_deleted', handleProfileDeleted);
+        }
+      };
+    }
+  }, [socket, selectedProfile, setSelectedProfile]);
 
   const calculateStats = () => {
     // Calculate account uptime

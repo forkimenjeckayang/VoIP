@@ -44,9 +44,10 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('connect', () => {
       console.log('✅ Socket.io connected');
       setConnectionStatus('connected');
-      // Join user's personal channel
-      if (user._id) {
-        newSocket.emit('join_profile_channel', user._id);
+      // Join user's personal channel - use _id or id (JWT contains 'id')
+      const userId = user._id || user.id;
+      if (userId) {
+        newSocket.emit('join_profile_channel', userId.toString());
       }
     });
 

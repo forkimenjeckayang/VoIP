@@ -24,8 +24,8 @@ const Speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 
 const userDataResponseGen = (userDataObj) => {
-    const { _id, name, email, token } = userDataObj;
-    return { _id, name, email, token };
+    const { _id, name, email } = userDataObj;
+    return { _id, name, email };
 };
 
 exports.login = async (req, res) => {
@@ -45,8 +45,7 @@ exports.login = async (req, res) => {
                 if (checkpassword) {
                     var obj = { id: user.id, email: user.email, name: user.name };
                     var token = jwt.sign(obj, process.env.COOKIE_KEY);
-                    user.token = token;
-                    user.save();
+                    // Token is stateless JWT - no need to store in database
                     var status = 'true';
                     var harwarekey, mfa;
                     if (user.hardwarekey && user.hardwarekey === 'true') {
@@ -126,8 +125,7 @@ exports.register = async (req, res) => {
                 // Generate token for new user
                 var obj = { id: saveUser.id, email: saveUser.email, name: saveUser.name };
                 var token = jwt.sign(obj, process.env.COOKIE_KEY);
-                saveUser.token = token;
-                await saveUser.save();
+                // Token is stateless JWT - no need to store in database
 
                 const userDataResponse = userDataResponseGen(saveUser);
                 res.send({ status: true, message: 'User created successfully!', data: userDataResponse });
