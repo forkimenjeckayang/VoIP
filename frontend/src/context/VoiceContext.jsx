@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Device } from '@twilio/voice-sdk';
 import { useAuth } from './AuthContext';
+import { useSocket } from './SocketContext';
 import api from '../services/api';
 
 const VoiceContext = createContext();
@@ -11,6 +12,7 @@ export const VoiceProvider = ({ children }) => {
     const [callStatus, setCallStatus] = useState('idle'); // idle, connecting, ringing, active, ended
     const [selectedProfile, setSelectedProfile] = useState(null);
     const { user } = useAuth();
+    const socket = useSocket();
 
     useEffect(() => {
         if (user) {
@@ -20,6 +22,53 @@ export const VoiceProvider = ({ children }) => {
             }
         }
     }, [user]);
+
+    // Listen for profile changes via socket
+    useEffect(() => {
+        if (socket) {
+            const handleProfileDeleted = async (data) => {
+                console.log('🗑️ VoiceContext: Profile deleted', data);
+                // If the deleted profile was selected, clear selection and reload
+                if (selectedProfile?._id === data.profile_id) {
+                    setSelectedProfile(null);
+                    // Try to load a new default profile
+                    try {
+                        const res = await api.post('/profile/getdata');
+                        if (res.data.status && res.data.data && res.data.data.length > 0) {
+                            setSelectedProfile(res.data.data[0]);
+                        }
+                    } catch (error) {
+                        console.error('VoiceContext: Failed to load default profile after deletion', error);
+                    }
+                }
+            };
+
+            const handleProfileCreated = async () => {
+                console.log('✅ VoiceContext: Profile created');
+                // If no profile is selected, try to load the new one
+                if (!selectedProfile) {
+                    try {
+                        const res = await api.post('/profile/getdata');
+                        if (res.data.status && res.data.data && res.data.data.length > 0) {
+                            setSelectedProfile(res.data.data[0]);
+                        }
+                    } catch (error) {
+                        console.error('VoiceContext: Failed to load default profile after creation', error);
+                    }
+                }
+            };
+
+            socket.on('profile_deleted', handleProfileDeleted);
+            socket.on('profile_created', handleProfileCreated);
+
+            return () => {
+                if (socket) {
+                    socket.off('profile_deleted', handleProfileDeleted);
+                    socket.off('profile_created', handleProfileCreated);
+                }
+            };
+        }
+    }, [socket, selectedProfile]);
 
     useEffect(() => {
         if (user && selectedProfile) {

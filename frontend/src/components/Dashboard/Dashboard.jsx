@@ -19,65 +19,91 @@ function Dashboard() {
   const { user } = useAuth();
   const { selectedProfile } = useVoice();
 
-  useEffect(() => {
-    // Load conversations even without selectedProfile - messages should still be viewable
-    // Only sending requires a profile
-    loadConversations();
-  }, [selectedProfile]);
-
-  // Listen for profile deletion events
-  useEffect(() => {
-    if (socket) {
-      const handleProfileDeleted = () => {
-        // Reload conversations when profile is deleted
-        loadConversations();
-      };
-
-      socket.on('profile_deleted', handleProfileDeleted);
-
-      return () => {
-        if (socket) {
-          socket.off('profile_deleted', handleProfileDeleted);
-        }
-      };
-    }
-  }, [socket]);
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
-      if (!user) return;
-      
-      // If no profile selected, load all conversations for the user
-      if (!selectedProfile) {
-        // Load conversations without profile filter - show all messages
-        // We'll need to modify the endpoint or use a different approach
-        // For now, just return empty if no profile
-        setConversations([]);
+      if (!user) {
+        console.log('Dashboard: No user, skipping loadConversations');
         return;
       }
 
-      const res = await api.post('/setting/sms-number-list', {
-        user: user.id || user._id,
-        setting: selectedProfile._id
-      });
+      // Always load all conversations for the user, regardless of profile selection
+      // Profile is only used for SENDING messages, not for viewing them
+      // This matches phone behavior: you can view all messages even without SIM, but need SIM to send
+      const requestBody = {
+        user: user.id || user._id
+      };
+      
+      // Don't filter by setting - show all messages for the user
+      // This ensures messages are visible even when profile changes or is deleted
+      console.log('Dashboard: Loading conversations for user (all messages, no profile filter)');
+
+      const res = await api.post('/setting/sms-number-list', requestBody);
+      console.log('Dashboard: API response:', res.data);
 
       // The endpoint returns an array of objects directly (based on controller logic)
-      const data = Array.isArray(res.data) ? res.data : [];
+      // Check if res.data is an array, or if it's wrapped in a data property
+      let data = [];
+      if (Array.isArray(res.data)) {
+        data = res.data;
+      } else if (res.data && Array.isArray(res.data.data)) {
+        data = res.data.data;
+      } else if (res.data && res.data.status && Array.isArray(res.data.data)) {
+        data = res.data.data;
+      }
+
+      console.log('Dashboard: Processed conversations data:', data.length, 'conversations');
 
       const formattedConversations = data.map(conv => ({
         phoneNumber: conv._id, // Aggregation group _id is the phone number
-        name: conv.contact ? `${conv.contact.first_name} ${conv.contact.last_name}` : '',
-        lastMessage: conv.message,
+        name: conv.contact ? `${conv.contact.first_name || ''} ${conv.contact.last_name || ''}`.trim() : '',
+        lastMessage: conv.message || '',
         timestamp: conv.created_at || new Date().toISOString(),
         unread: conv.isview || 0 // The controller aggregation sums up 'isview=false' count
       }));
 
+      console.log('Dashboard: Formatted conversations:', formattedConversations.length);
       setConversations(formattedConversations);
 
     } catch (error) {
       console.error('Failed to load conversations:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      // Set empty array on error to show "no conversations" state
+      setConversations([]);
     }
-  };
+  }, [user]); // Removed selectedProfile from dependencies - we always load all messages
+
+  useEffect(() => {
+    // Load conversations even without selectedProfile - messages should still be viewable
+    // Only sending requires a profile
+    loadConversations();
+  }, [loadConversations]);
+
+  // Listen for profile creation and deletion events
+  useEffect(() => {
+    if (socket) {
+      const handleProfileDeleted = () => {
+        console.log('🗑️ Dashboard: Profile deleted, reloading conversations');
+        // Reload conversations when profile is deleted
+        loadConversations();
+      };
+
+      const handleProfileCreated = () => {
+        console.log('✅ Dashboard: Profile created, reloading conversations');
+        // Reload conversations when profile is created
+        loadConversations();
+      };
+
+      socket.on('profile_deleted', handleProfileDeleted);
+      socket.on('profile_created', handleProfileCreated);
+
+      return () => {
+        if (socket) {
+          socket.off('profile_deleted', handleProfileDeleted);
+          socket.off('profile_created', handleProfileCreated);
+        }
+      };
+    }
+  }, [socket, loadConversations]);
 
   useEffect(() => {
     if (socket) {
@@ -117,7 +143,7 @@ function Dashboard() {
         // When a message is deleted, reload conversations to get the updated last message
         // This ensures the chat list shows the correct last message
         if (data.number) {
-          await loadConversations();
+          loadConversations();
         }
       });
 
@@ -140,7 +166,7 @@ function Dashboard() {
         socket.off('messages_deleted');
       }
     };
-  }, [socket]);
+  }, [socket, loadConversations]);
 
   const handleContactSaved = () => {
     // Reload conversations to get updated contact names
@@ -162,7 +188,7 @@ function Dashboard() {
       // The socket event will handle the update
       console.log('Message deleted, but not the last message');
     }
-  }, []);
+  }, [loadConversations]);
 
   const handleContactDeleted = useCallback(() => {
     // Reload conversations to remove contact names
@@ -171,7 +197,7 @@ function Dashboard() {
     if (reloadContactsRef.current) {
       reloadContactsRef.current();
     }
-  }, []);
+  }, [loadConversations]);
 
   // Listen for contact deletion events from Contacts component
   useEffect(() => {

@@ -78,16 +78,18 @@ exports.create = async (req, res) => {
     if (validation.passes()) {
       var user = await User.findOne({ _id: { $eq: req.body.user } });
       if (user) {
-        // Enforce Max Number Limit (Default: 2)
+        // Enforce Max Number Limit (Default: 1)
+        // Users can only have 1 active phone number at a time
+        // They can switch by deleting the current one and adding a new one
         // Only check limit for NEW assignments (not updates)
         if (!req.body.setting) {
           const currentCount = await Setting.countDocuments({ user: req.body.user });
-          const limit = process.env.MAX_NUMBERS_PER_USER || 2;
+          const limit = process.env.MAX_NUMBERS_PER_USER || 1;
 
           if (currentCount >= limit) {
             return res.status(400).json({
               status: "false",
-              message: `You have reached the maximum limit of ${limit} phone numbers.`,
+              message: `You can only have ${limit} active phone number at a time. Please delete your current number before adding a new one.`,
             });
           }
         }
@@ -134,10 +136,20 @@ exports.create = async (req, res) => {
         };
 
         // If req.body.setting exists, update. Else create.
+        let savedSetting;
         if (req.body.setting) {
           await Setting.updateOne({ _id: req.body.setting }, settingData);
+          savedSetting = await Setting.findOne({ _id: req.body.setting });
         } else {
-          await Setting.create(settingData);
+          savedSetting = await Setting.create(settingData);
+        }
+
+        // Emit socket event to notify frontend of profile creation/update
+        if (global.io && req.body.user) {
+          global.io.to(req.body.user.toString()).emit('profile_created', {
+            profile_id: savedSetting._id,
+            user: req.body.user
+          });
         }
 
         res.send({
@@ -612,9 +624,17 @@ exports.smsStatus = async (req, res) => {
 exports.getNumberList = async (req, res) => {
   try {
     var user_id = new mongoose.Types.ObjectId(req.body.user);
-    var setting = new mongoose.Types.ObjectId(req.body.setting);
+    
+    // If setting is provided, filter by it; otherwise, get all messages for the user
+    // This allows viewing messages even when no profile is selected (like phone without SIM)
+    var matchStage = { user: user_id };
+    if (req.body.setting) {
+      var setting = new mongoose.Types.ObjectId(req.body.setting);
+      matchStage.setting = setting;
+    }
+    
     var message = await Message.aggregate([
-      { $match: { user: user_id, setting: setting } },
+      { $match: matchStage },
       { $sort: { _id: -1 } },
       {
         $group: {
@@ -626,7 +646,6 @@ exports.getNumberList = async (req, res) => {
           message_type: { $first: "$datatype" },
           type: { $first: "$type" },
           twilio_number: { $first: "$twilio_number" },
-          id: { $first: "$_id" },
           isview: {
             $sum: {
               $cond: { if: { $eq: ["$isview", "false"] }, then: 1, else: 0 },
@@ -641,6 +660,7 @@ exports.getNumberList = async (req, res) => {
     });
     res.status(200).json(message);
   } catch (error) {
+    console.error('getNumberList error:', error);
     res.status(400).json({ status: "false", message: "something went wrong" });
   }
 };

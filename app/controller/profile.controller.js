@@ -19,6 +19,13 @@ exports.crateProfile = async (req, res) => {
                 var storeData = { user: req.user.id, profile: req.body.profile };
                 var isSave = await Setting.create(storeData);
                 if (isSave) {
+                    // Emit socket event to notify frontend of profile creation
+                    if (global.io && req.user.id) {
+                        global.io.to(req.user.id.toString()).emit('profile_created', {
+                            profile_id: isSave._id,
+                            user: req.user.id
+                        });
+                    }
                     res.send({ status: true, message: 'Profile saved!', data: isSave });
                 } else {
                     res.status(400).json({ status: 'false', message: 'Profile not saved!' });
