@@ -111,11 +111,33 @@ function Dashboard() {
           return updated;
         });
       });
+
+      socket.on('message_deleted', async (data) => {
+        console.log('🗑️ Dashboard received message_deleted socket event:', data);
+        // When a message is deleted, reload conversations to get the updated last message
+        // This ensures the chat list shows the correct last message
+        if (data.number) {
+          await loadConversations();
+        }
+      });
+
+      socket.on('messages_deleted', async (data) => {
+        console.log('🗑️ Dashboard received messages_deleted socket event:', data);
+        // When all messages are deleted, remove the conversation or update it
+        if (data.number) {
+          setConversations(prev => {
+            const updated = prev.filter(c => c.phoneNumber !== data.number);
+            return updated;
+          });
+        }
+      });
     }
 
     return () => {
       if (socket) {
         socket.off('new_message');
+        socket.off('message_deleted');
+        socket.off('messages_deleted');
       }
     };
   }, [socket]);
@@ -128,6 +150,19 @@ function Dashboard() {
       reloadContactsRef.current();
     }
   };
+
+  const handleMessageDeleted = useCallback((data) => {
+    // When a message is deleted, update the conversations list
+    // If it was the last message, reload to get the new last message
+    if (data.wasLastMessage && data.phoneNumber) {
+      // Reload conversations to get updated last message
+      loadConversations();
+    } else if (data.phoneNumber) {
+      // For non-last messages, we can keep the current lastMessage
+      // The socket event will handle the update
+      console.log('Message deleted, but not the last message');
+    }
+  }, []);
 
   const handleContactDeleted = useCallback(() => {
     // Reload conversations to remove contact names
@@ -176,6 +211,7 @@ function Dashboard() {
                 selectedChat={selectedChat}
                 onBack={() => setSelectedChat(null)}
                 onContactSaved={handleContactSaved}
+                onMessageDeleted={handleMessageDeleted}
               />
             }
           />

@@ -7,7 +7,7 @@ import { useVoice } from '../../context/VoiceContext';
 import './ChatArea.css';
 import '../shared/Modal.css';
 
-function ChatArea({ selectedChat, onBack, onContactSaved }) {
+function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -296,9 +296,30 @@ function ChatArea({ selectedChat, onBack, onContactSaved }) {
       });
 
       if (res.data.status === true || res.data.status === 'true') {
-        // Message will be removed via socket event, but we can also remove it immediately
+        // Find the deleted message before removing it
+        const deletedMessage = messages.find(msg => msg._id === messageId);
+        const deletedTimestamp = deletedMessage ? (deletedMessage.timestamp || deletedMessage.created_at) : null;
+        
+        // Get the last message timestamp before deletion
+        const lastMessage = messages[messages.length - 1];
+        const lastMessageTimestamp = lastMessage ? (lastMessage.timestamp || lastMessage.created_at) : null;
+        
+        // Check if deleted message was the last message
+        const wasLastMessage = deletedTimestamp && lastMessageTimestamp && 
+          deletedTimestamp === lastMessageTimestamp;
+        
+        // Remove message from UI
         setMessages(prev => prev.filter(msg => msg._id !== messageId));
         setMessageToDelete(null);
+        
+        // Notify parent to update conversations list
+        if (onMessageDeleted && deletedMessage) {
+          onMessageDeleted({
+            messageId,
+            phoneNumber: selectedChat?.phoneNumber,
+            wasLastMessage: wasLastMessage || messages.length === 1
+          });
+        }
       } else {
         setError(res.data.errors || 'Failed to delete message');
       }
