@@ -672,6 +672,50 @@ exports.messageDelete = async (req, res) => {
   }
 };
 
+exports.deleteSingleMessage = async (req, res) => {
+  try {
+    const messageId = req.body.message_id;
+    const userId = req.user?.id || req.body.user;
+    
+    if (!messageId) {
+      return res.status(400).send({ status: false, errors: "Message ID is required", data: [] });
+    }
+
+    // Find the message first to get the number for socket event
+    const message = await Message.findOne({ 
+      _id: { $eq: messageId },
+      user: { $eq: userId }
+    });
+
+    if (!message) {
+      return res.status(404).send({ status: false, errors: "Message not found", data: [] });
+    }
+
+    // Delete the single message
+    const deletedMessage = await Message.deleteOne({ 
+      _id: { $eq: messageId },
+      user: { $eq: userId }
+    });
+
+    if (deletedMessage.deletedCount > 0) {
+      // Emit socket event to notify frontend of single message deletion
+      if (global.io && userId) {
+        global.io.to(userId.toString()).emit('message_deleted', {
+          user: userId,
+          message_id: messageId,
+          number: message.number
+        });
+      }
+      
+      res.status(200).send({ status: true, errors: "", data: deletedMessage });
+    } else {
+      res.status(400).send({ status: false, errors: "Message not deleted", data: [] });
+    }
+  } catch (error) {
+    res.status(400).send({ status: false, errors: error.message, data: [] });
+  }
+};
+
 exports.messageList = async (req, res) => {
   try {
     let filterObject;

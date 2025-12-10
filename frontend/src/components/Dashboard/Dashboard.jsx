@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
@@ -14,6 +14,7 @@ import './Dashboard.css';
 function Dashboard() {
   const [selectedChat, setSelectedChat] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const reloadContactsRef = useRef(null);
   const socket = useSocket();
   const { user } = useAuth();
   const { selectedProfile } = useVoice();
@@ -119,12 +120,51 @@ function Dashboard() {
     };
   }, [socket]);
 
+  const handleContactSaved = () => {
+    // Reload conversations to get updated contact names
+    loadConversations();
+    // Reload contacts in Sidebar
+    if (reloadContactsRef.current) {
+      reloadContactsRef.current();
+    }
+  };
+
+  const handleContactDeleted = useCallback(() => {
+    // Reload conversations to remove contact names
+    loadConversations();
+    // Reload contacts in Sidebar
+    if (reloadContactsRef.current) {
+      reloadContactsRef.current();
+    }
+  }, []);
+
+  // Listen for contact deletion events from Contacts component
+  useEffect(() => {
+    const handleContactDeletedEvent = (event) => {
+      handleContactDeleted();
+      // If the deleted contact is the currently selected chat, update it
+      if (selectedChat && event.detail?.phoneNumber === selectedChat.phoneNumber) {
+        // Update selectedChat to remove the name
+        setSelectedChat(prev => ({
+          ...prev,
+          name: prev.phoneNumber // Reset name to phone number
+        }));
+      }
+    };
+
+    window.addEventListener('contactDeleted', handleContactDeletedEvent);
+    return () => {
+      window.removeEventListener('contactDeleted', handleContactDeletedEvent);
+    };
+  }, [selectedChat, handleContactDeleted]);
+
   return (
     <div className={`dashboard ${selectedChat || location.pathname !== '/' ? 'mobile-content-active' : ''}`}>
       <Sidebar
         conversations={conversations}
         selectedChat={selectedChat}
         onSelectChat={setSelectedChat}
+        onReloadContacts={reloadContactsRef}
       />
 
       <div className="main-content">
@@ -135,6 +175,7 @@ function Dashboard() {
               <ChatArea
                 selectedChat={selectedChat}
                 onBack={() => setSelectedChat(null)}
+                onContactSaved={handleContactSaved}
               />
             }
           />

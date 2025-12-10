@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiSend, FiPhone, FiPaperclip, FiArrowLeft, FiInfo, FiX, FiMail, FiAlertCircle, FiUserPlus, FiEdit } from 'react-icons/fi';
+import { FiSend, FiPhone, FiPaperclip, FiArrowLeft, FiInfo, FiX, FiMail, FiAlertCircle, FiUserPlus, FiEdit, FiTrash2, FiMoreVertical } from 'react-icons/fi';
 import api from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,7 +7,7 @@ import { useVoice } from '../../context/VoiceContext';
 import './ChatArea.css';
 import '../shared/Modal.css';
 
-function ChatArea({ selectedChat, onBack }) {
+function ChatArea({ selectedChat, onBack, onContactSaved }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,10 @@ function ChatArea({ selectedChat, onBack }) {
   const [newContactName, setNewContactName] = useState({ firstName: '', lastName: '' });
   const [showEditContactModal, setShowEditContactModal] = useState(false);
   const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
   const socket = useSocket();
@@ -31,6 +35,22 @@ function ChatArea({ selectedChat, onBack }) {
         fetchContactDetails(selectedChat.phoneNumber);
       }
     }
+  }, [selectedChat]);
+
+  // Listen for contact deletion events to refresh contact details
+  useEffect(() => {
+    const handleContactDeletedEvent = (event) => {
+      // If the deleted contact is the currently selected chat, refresh contact details
+      if (selectedChat && event.detail?.phoneNumber === selectedChat.phoneNumber) {
+        // Clear contact details to show as unsaved
+        setContactDetails(null);
+      }
+    };
+
+    window.addEventListener('contactDeleted', handleContactDeletedEvent);
+    return () => {
+      window.removeEventListener('contactDeleted', handleContactDeletedEvent);
+    };
   }, [selectedChat]);
 
   useEffect(() => {
@@ -75,13 +95,23 @@ function ChatArea({ selectedChat, onBack }) {
         }
       };
 
+      const handleMessageDeleted = (data) => {
+        console.log('🗑️ Received message_deleted socket event:', data);
+        if (data.number === selectedChat.phoneNumber) {
+          // Remove the deleted message from the list
+          setMessages(prev => prev.filter(msg => msg._id !== data.message_id));
+        }
+      };
+
       socket.on('new_message', handleNewMessage);
       socket.on('messages_deleted', handleMessagesDeleted);
+      socket.on('message_deleted', handleMessageDeleted);
 
       return () => {
         if (socket) {
           socket.off('new_message', handleNewMessage);
           socket.off('messages_deleted', handleMessagesDeleted);
+          socket.off('message_deleted', handleMessageDeleted);
         }
       };
     }
@@ -218,12 +248,89 @@ function ChatArea({ selectedChat, onBack }) {
       if (res.data.status === true || res.data.status === 'true') {
         setShowEditContactModal(false);
         setContactDetails({ ...contactDetails, first_name: editFormData.firstName, last_name: editFormData.lastName });
+        // Notify parent to reload conversations and contacts
+        if (onContactSaved) {
+          onContactSaved();
+        }
       } else {
         setError(res.data.message || 'Failed to update contact');
       }
     } catch (error) {
       console.error('Failed to update contact:', error);
       setError('Failed to update contact');
+    }
+  };
+
+  const handleDeleteContact = async () => {
+    if (!contactDetails) return;
+
+    try {
+      const res = await api.post('/contact/delete', { contact_id: contactDetails._id });
+      if (res.data.status === true || res.data.status === 'true') {
+        setShowDeleteConfirm(false);
+        setContactDetails(null);
+        // Dispatch custom event to notify Dashboard and other components
+        window.dispatchEvent(new CustomEvent('contactDeleted', { 
+          detail: { phoneNumber: selectedChat.phoneNumber } 
+        }));
+        // Also notify parent
+        if (onContactSaved) {
+          onContactSaved();
+        }
+      } else {
+        setError(res.data.message || 'Failed to delete contact');
+      }
+    } catch (error) {
+      console.error('Failed to delete contact:', error);
+      setError('Failed to delete contact');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!messageId || !user) return;
+
+    try {
+      const res = await api.post('/setting/message-delete', {
+        message_id: messageId,
+        user: user.id || user._id
+      });
+
+      if (res.data.status === true || res.data.status === 'true') {
+        // Message will be removed via socket event, but we can also remove it immediately
+        setMessages(prev => prev.filter(msg => msg._id !== messageId));
+        setMessageToDelete(null);
+      } else {
+        setError(res.data.errors || 'Failed to delete message');
+      }
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      setError('Failed to delete message');
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!selectedChat || !selectedChat.phoneNumber || !user) return;
+
+    try {
+      const res = await api.post('/setting/message-list-delete', {
+        user: user.id || user._id,
+        number: selectedChat.phoneNumber
+      });
+
+      if (res.data.status === true || res.data.status === 'true') {
+        setShowDeleteChatConfirm(false);
+        // Messages will be cleared via socket event, but we can also clear immediately
+        setMessages([]);
+        // Notify parent to reload conversations
+        if (onContactSaved) {
+          onContactSaved();
+        }
+      } else {
+        setError(res.data.errors || 'Failed to delete chat');
+      }
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      setError('Failed to delete chat');
     }
   };
 
@@ -254,9 +361,10 @@ function ChatArea({ selectedChat, onBack }) {
         setShowAddContactModal(false);
         setNewContactName({ firstName: '', lastName: '' });
         fetchContactDetails(selectedChat.phoneNumber);
-        // Dispatch custom event to notify Sidebar to reload contacts?
-        // Simpler for now: The user sees the name update in Chat header. 
-        // Sidebar will update on page reload or we can trigger it in future refactor.
+        // Notify parent to reload conversations and contacts
+        if (onContactSaved) {
+          onContactSaved();
+        }
       } else {
         setError(res.data.message || 'Failed to add contact');
       }
@@ -342,6 +450,14 @@ function ChatArea({ selectedChat, onBack }) {
               <FiUserPlus />
             </button>
           )}
+          <button 
+            onClick={() => setShowDeleteChatConfirm(true)} 
+            className="icon-btn" 
+            title="Delete Chat"
+            style={{ marginRight: '8px', color: '#ff4444' }}
+          >
+            <FiTrash2 />
+          </button>
           <button onClick={() => setShowContactInfo(true)} className="icon-btn" title="Info">
             <FiInfo />
           </button>
@@ -369,19 +485,80 @@ function ChatArea({ selectedChat, onBack }) {
             const showDateSeparator = !prevMsgDate || currentMsgDate.toDateString() !== prevMsgDate.toDateString();
 
             return (
-              <div key={index}>
+              <div key={msg._id || index}>
                 {showDateSeparator && (
                   <div className="date-separator">
                     <span>{formatDateLabel(currentMsgDate)}</span>
                   </div>
                 )}
-                <div className={`message ${isOutbound ? 'outgoing' : 'incoming'}`}>
+                <div 
+                  className={`message ${isOutbound ? 'outgoing' : 'incoming'}`}
+                  onMouseEnter={() => setHoveredMessageId(msg._id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {!isOutbound && hoveredMessageId === msg._id && (
+                    <button
+                      onClick={() => setMessageToDelete(msg._id)}
+                      className="message-delete-btn"
+                      title="Delete message"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '18px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: 'color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.color = 'rgba(255, 68, 68, 0.8)'}
+                      onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.5)'}
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  )}
                   <div className="message-content">
                     <p>{msg.body || msg.message}</p>
                     <span className="message-time">
                       {currentMsgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
+                  {isOutbound && hoveredMessageId === msg._id && (
+                    <button
+                      onClick={() => setMessageToDelete(msg._id)}
+                      className="message-delete-btn"
+                      title="Delete message"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '18px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: 'color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.color = 'rgba(255, 68, 68, 0.8)'}
+                      onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.5)'}
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -453,9 +630,12 @@ function ChatArea({ selectedChat, onBack }) {
                   )}
 
 
-                  <div style={{ marginTop: '20px', borderTop: '1px solid #333', paddingTop: '15px' }}>
+                  <div style={{ marginTop: '20px', borderTop: '1px solid #333', paddingTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <button onClick={openEditModal} className="secondary-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                       <FiEdit /> Edit Contact
+                    </button>
+                    <button onClick={() => setShowDeleteConfirm(true)} className="secondary-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#ff4444', borderColor: '#ff4444' }}>
+                      <FiTrash2 /> Delete Contact
                     </button>
                   </div>
                 </div>
@@ -525,6 +705,73 @@ function ChatArea({ selectedChat, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Delete Contact Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content alert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="icon error">
+              <FiAlertCircle />
+            </div>
+            <h3>Delete Contact?</h3>
+            <p>Are you sure you want to delete <strong>{contactDetails?.first_name} {contactDetails?.last_name}</strong>?</p>
+            <p className="warning-text">This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowDeleteConfirm(false)} className="cancel-btn">
+                Cancel
+              </button>
+              <button onClick={handleDeleteContact} className="delete-confirm-btn" style={{ backgroundColor: '#ff4444' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Chat Confirmation Modal */}
+      {showDeleteChatConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteChatConfirm(false)}>
+          <div className="modal-content alert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="icon error">
+              <FiAlertCircle />
+            </div>
+            <h3>Delete Chat?</h3>
+            <p>Are you sure you want to delete all messages with <strong>{getContactName()}</strong>?</p>
+            <p className="warning-text">This will permanently delete all messages in this conversation. This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowDeleteChatConfirm(false)} className="cancel-btn">
+                Cancel
+              </button>
+              <button onClick={handleDeleteChat} className="delete-confirm-btn" style={{ backgroundColor: '#ff4444' }}>
+                Delete Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Message Confirmation Modal */}
+      {messageToDelete && (
+        <div className="modal-overlay" onClick={() => setMessageToDelete(null)}>
+          <div className="modal-content alert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="icon error">
+              <FiAlertCircle />
+            </div>
+            <h3>Delete Message?</h3>
+            <p>Are you sure you want to delete this message?</p>
+            <p className="warning-text">This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button onClick={() => setMessageToDelete(null)} className="cancel-btn">
+                Cancel
+              </button>
+              <button onClick={() => handleDeleteMessage(messageToDelete)} className="delete-confirm-btn" style={{ backgroundColor: '#ff4444' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Modal */}
       {error && (
         <div className="modal-overlay" onClick={closeError}>

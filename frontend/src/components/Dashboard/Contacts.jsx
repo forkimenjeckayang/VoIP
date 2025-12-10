@@ -98,6 +98,10 @@ function Contacts() {
         showAlert('success', 'Contact deleted successfully');
         loadContacts();
         setShowDeleteConfirm(false);
+        // Dispatch custom event to notify Dashboard and other components
+        window.dispatchEvent(new CustomEvent('contactDeleted', { 
+          detail: { phoneNumber: contactToDelete.number } 
+        }));
         setContactToDelete(null);
       }
     } catch (error) {

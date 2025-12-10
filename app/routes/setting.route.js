@@ -15,6 +15,7 @@ module.exports = app => {
     router.post("/sms-number-list", auth, setting.getNumberList);
     router.post("/message-list", auth, setting.messageList);
     router.post("/message-list-delete", auth, setting.messageDelete);
+    router.post("/message-delete", auth, setting.deleteSingleMessage);
 
     // Twilio-only fallback routes
     router.post("/twilio/twiml/fallback", auth, fallback.twilioTwimlFallback);

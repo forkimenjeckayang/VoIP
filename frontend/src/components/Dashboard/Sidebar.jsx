@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiMessageSquare, FiUsers, FiSettings, FiLogOut, FiPhone, FiEdit, FiX } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
@@ -7,7 +7,7 @@ import api from '../../services/api';
 import './Sidebar.css';
 import '../shared/Modal.css';
 
-function Sidebar({ conversations, selectedChat, onSelectChat }) {
+function Sidebar({ conversations, selectedChat, onSelectChat, onReloadContacts }) {
   const [activeTab, setActiveTab] = useState('chats');
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [contacts, setContacts] = useState([]);
@@ -18,11 +18,7 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    loadContacts();
-  }, []);
-
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     try {
       const res = await api.get('/contact/get-all');
       if (res.data.status) {
@@ -31,7 +27,15 @@ function Sidebar({ conversations, selectedChat, onSelectChat }) {
     } catch (error) {
       console.error('Failed to load contacts:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadContacts();
+    // Expose reload function to parent if provided
+    if (onReloadContacts) {
+      onReloadContacts.current = loadContacts;
+    }
+  }, [loadContacts, onReloadContacts]);
 
   const handleSelectContact = (contact) => {
     // Create a conversation object and select it
