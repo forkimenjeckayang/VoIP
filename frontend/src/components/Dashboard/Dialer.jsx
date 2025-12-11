@@ -30,11 +30,17 @@ function Dialer() {
         loadContacts();
     }, []);
 
-    // Reset UI when call status changes to 'ended' - VoiceContext will reset to 'idle' automatically
+    // Reset UI when call status changes to 'ended' - ensure immediate reset
     useEffect(() => {
         if (callStatus === 'ended') {
-            // VoiceContext will automatically reset to 'idle' after 500ms
-            // This effect is just for any additional cleanup if needed
+            // Immediately reset to allow dial pad to work again
+            // VoiceContext will also reset, but we ensure UI is ready
+            setTimeout(() => {
+                // Force re-enable if still in ended state
+                if (callStatus === 'ended') {
+                    // This will be handled by VoiceContext, but ensure UI updates
+                }
+            }, 100);
         }
     }, [callStatus]);
 
@@ -125,6 +131,20 @@ function Dialer() {
         setIsMuted(newMuteState);
     };
 
+    // Sync mute state with call
+    useEffect(() => {
+        if (call) {
+            setIsMuted(call.isMuted());
+            // Listen for mute changes from call object
+            const handleMuteChange = () => {
+                setIsMuted(call.isMuted());
+            };
+            // Note: Twilio SDK doesn't have a direct mute event, so we check on status changes
+        } else {
+            setIsMuted(false);
+        }
+    }, [call, callStatus]);
+
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
         const cleaned = phone.replace(/\D/g, '');
@@ -204,12 +224,13 @@ function Dialer() {
                         <button
                             onClick={handleToggleMute}
                             className={`mute-btn ${isMuted ? 'muted' : ''}`}
+                            title={isMuted ? 'Unmute' : 'Mute'}
                         >
-                            {isMuted ? <FiMicOff /> : <FiMic />}
+                            {isMuted ? <FiMicOff size={24} /> : <FiMic size={24} />}
                         </button>
                     </div>
                     <button onClick={handleHangup} className="hangup-btn">
-                        <FiPhoneOff /> Hang Up
+                        <FiPhoneOff size={20} /> Hang Up
                     </button>
                 </div>
             ) : (
@@ -228,11 +249,15 @@ function Dialer() {
                             }}
                             placeholder="Enter phone number"
                             className="phone-input"
-                            disabled={callStatus !== 'idle'}
+                            disabled={callStatus !== 'idle' && callStatus !== 'ended'}
                         />
                         <div className="phone-actions">
                             {phoneNumber && (
-                                <button onClick={handleDelete} className="delete-btn">
+                                <button 
+                                    onClick={handleDelete} 
+                                    className="dialer-delete-btn"
+                                    title="Delete last digit"
+                                >
                                     <FiDelete />
                                 </button>
                             )}
@@ -241,7 +266,7 @@ function Dialer() {
                                 className="contacts-btn"
                                 title="Select from contacts"
                             >
-                                <FiUsers />
+                                <FiUsers size={18} />
                             </button>
                         </div>
                     </div>
@@ -287,7 +312,7 @@ function Dialer() {
                                         key={num}
                                         onClick={() => handleNumberClick(num)}
                                         className="dial-button"
-                                        disabled={callStatus !== 'idle'}
+                                        disabled={callStatus !== 'idle' && callStatus !== 'ended'}
                                     >
                                         {num}
                                     </button>
@@ -299,7 +324,7 @@ function Dialer() {
                     <button
                         onClick={handleCall}
                         className="call-button"
-                        disabled={!phoneNumber || callStatus !== 'idle' || !selectedProfile}
+                        disabled={!phoneNumber || (callStatus !== 'idle' && callStatus !== 'ended') || !selectedProfile}
                     >
                         <FiPhone /> Call
                     </button>

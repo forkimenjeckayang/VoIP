@@ -108,6 +108,89 @@ exports.getCallHistory = async (req, res) => {
         console.error('Get call history error:', error);
         res.status(400).json({ status: false, message: 'something went wrong', data: [] });
     }
+}
+
+exports.deleteCall = async (req, res) => {
+    try {
+        const callId = req.body.call_id;
+        const userId = req.user?.id || req.body.user;
+
+        if (!callId) {
+            return res.status(400).json({ status: false, message: 'Call ID required' });
+        }
+
+        if (!userId) {
+            return res.status(400).json({ status: false, message: 'User ID required' });
+        }
+
+        // Convert userId to ObjectId if needed
+        let userObjectId;
+        try {
+            userObjectId = mongoose.Types.ObjectId.isValid(userId) 
+                ? new mongoose.Types.ObjectId(userId) 
+                : userId;
+        } catch (error) {
+            userObjectId = userId;
+        }
+
+        // Find and delete the call, ensuring it belongs to the user
+        const call = await Call.findOne({
+            _id: callId,
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ],
+            datatype: 'call'
+        });
+
+        if (!call) {
+            return res.status(404).json({ status: false, message: 'Call not found' });
+        }
+
+        await Call.deleteOne({ _id: callId });
+        res.send({ status: true, message: 'Call deleted successfully!' });
+    } catch (error) {
+        console.error('Delete call error:', error);
+        res.status(400).json({ status: false, message: 'Failed to delete call' });
+    }
+}
+
+exports.deleteAllCalls = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.body.user;
+
+        if (!userId) {
+            return res.status(400).json({ status: false, message: 'User ID required' });
+        }
+
+        // Convert userId to ObjectId if needed
+        let userObjectId;
+        try {
+            userObjectId = mongoose.Types.ObjectId.isValid(userId) 
+                ? new mongoose.Types.ObjectId(userId) 
+                : userId;
+        } catch (error) {
+            userObjectId = userId;
+        }
+
+        // Delete all calls for the user
+        const result = await Call.deleteMany({
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ],
+            datatype: 'call'
+        });
+
+        res.send({ 
+            status: true, 
+            message: `Deleted ${result.deletedCount} call(s) successfully!`,
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('Delete all calls error:', error);
+        res.status(400).json({ status: false, message: 'Failed to delete calls' });
+    }
 };
 
 exports.createCall = async (req, res) => {
@@ -297,11 +380,16 @@ exports.getToken = async (req, res) => {
                 outgoingApplicationSid: outgoingApplicationSid,
                 incomingAllow: true, // Allow incoming calls
             });
+            // Create token with 24 hour expiration (max allowed by Twilio)
+            // This prevents token expiration during long sessions
             const token = new AccessToken(
                 twilioAccountSid,
                 twilioApiKey,
                 twilioApiSecret,
-                { identity: identity }
+                { 
+                    identity: identity,
+                    ttl: 86400 // 24 hours in seconds (max allowed)
+                }
             );
             token.addGrant(voiceGrant);
             var tokenData = token.toJwt()

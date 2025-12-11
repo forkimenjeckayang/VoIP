@@ -13,6 +13,15 @@
   margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 1px solid #333;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
 }
 
 .call-history-header h2 {
@@ -61,10 +70,36 @@
   border-radius: 8px;
   transition: background 0.2s;
   cursor: pointer;
+  position: relative;
 }
 
 .call-item:hover {
   background: #333;
+}
+
+.delete-call-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+  margin-left: auto;
+}
+
+.call-item:hover .delete-call-btn {
+  opacity: 1;
+}
+
+.delete-call-btn:hover {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  transform: scale(1.1);
 }
 
 .call-icon-wrapper {
@@ -183,5 +218,95 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.delete-all-btn {
+  padding: 8px 16px;
+  border: 1px solid #f44336;
+  background: transparent;
+  color: #f44336;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.delete-all-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+.delete-confirm-modal {
+  max-width: 400px;
+  width: 90%;
+}
+
+.call-preview {
+  background: #2a2a2a;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+.call-preview p {
+  margin: 5px 0;
+}
+
+.call-preview-time {
+  color: #888;
+  font-size: 12px;
+}
+
+.warning-text {
+  color: #ff9800;
+  font-size: 13px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.cancel-btn,
+.delete-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #333;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #d32f2f;
+}
+
+.delete-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 

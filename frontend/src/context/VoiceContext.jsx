@@ -82,6 +82,31 @@ export const VoiceProvider = ({ children }) => {
         };
     }, [user, selectedProfile]);
 
+    // Proactive token refresh - refresh token before it expires (every 20 hours)
+    useEffect(() => {
+        if (!device || !selectedProfile) return;
+
+        // Refresh token every 20 hours (before 24 hour expiration)
+        const refreshInterval = setInterval(async () => {
+            try {
+                console.log('🔄 Proactively refreshing Twilio token...');
+                const res = await api.post('/call/token', {
+                    setting_id: selectedProfile._id
+                });
+                
+                if (res.data.status) {
+                    const newToken = res.data.data.token;
+                    await device.updateToken(newToken);
+                    console.log('✅ Token refreshed proactively');
+                }
+            } catch (error) {
+                console.error('Failed to proactively refresh token:', error);
+            }
+        }, 20 * 60 * 60 * 1000); // 20 hours in milliseconds
+
+        return () => clearInterval(refreshInterval);
+    }, [device, selectedProfile]);
+
     const loadDefaultProfile = async () => {
         try {
             const res = await api.post('/profile/getdata');
@@ -115,9 +140,35 @@ export const VoiceProvider = ({ children }) => {
                     console.log('Twilio Device registered');
                 });
 
-                twilioDevice.on('error', (error) => {
+                twilioDevice.on('error', async (error) => {
                     console.error('Twilio Device error:', error);
-                    setCallStatus('error');
+                    // Handle token validation errors by refreshing the token
+                    if (error.code === 20101 || error.code === 31204) {
+                        // AccessTokenInvalid or Token not validated - refresh token and re-register
+                        console.warn('Token validation error, refreshing token...');
+                        try {
+                            // Get a new token
+                            const res = await api.post('/call/token', {
+                                setting_id: selectedProfile._id
+                            });
+                            
+                            if (res.data.status) {
+                                const newToken = res.data.data.token;
+                                // Update the device with new token
+                                await twilioDevice.updateToken(newToken);
+                                console.log('✅ Token refreshed successfully');
+                            }
+                        } catch (refreshError) {
+                            console.error('Failed to refresh token:', refreshError);
+                            // If refresh fails, re-initialize the device
+                            if (device) {
+                                device.destroy();
+                            }
+                            initializeDevice();
+                        }
+                    } else {
+                        setCallStatus('error');
+                    }
                 });
 
                 twilioDevice.on('incoming', (incomingCall) => {
@@ -132,19 +183,15 @@ export const VoiceProvider = ({ children }) => {
                     incomingCall.on('disconnect', () => {
                         setCallStatus('ended');
                         setCall(null);
-                        // Reset to idle after a brief moment to allow UI to update
-                        setTimeout(() => {
-                            setCallStatus('idle');
-                        }, 500);
+                        // Reset to idle immediately for smooth transition
+                        setCallStatus('idle');
                     });
 
                     incomingCall.on('reject', () => {
                         setCallStatus('ended');
                         setCall(null);
-                        // Reset to idle after a brief moment to allow UI to update
-                        setTimeout(() => {
-                            setCallStatus('idle');
-                        }, 500);
+                        // Reset to idle immediately for smooth transition
+                        setCallStatus('idle');
                     });
                 });
 
@@ -255,10 +302,8 @@ export const VoiceProvider = ({ children }) => {
                     }
                 }
                 setCall(null);
-                // Reset to idle after a brief moment to allow UI to update
-                setTimeout(() => {
-                    setCallStatus('idle');
-                }, 500);
+                // Reset to idle immediately for smooth transition
+                setCallStatus('idle');
             });
 
             outgoingCall.on('reject', async () => {
@@ -279,10 +324,8 @@ export const VoiceProvider = ({ children }) => {
                     }
                 }
                 setCall(null);
-                // Reset to idle after a brief moment to allow UI to update
-                setTimeout(() => {
-                    setCallStatus('idle');
-                }, 500);
+                // Reset to idle immediately for smooth transition
+                setCallStatus('idle');
             });
 
             outgoingCall.on('cancel', async () => {
@@ -331,10 +374,8 @@ export const VoiceProvider = ({ children }) => {
                 }
                 
                 setCall(null);
-                // Reset to idle after a brief moment
-                setTimeout(() => {
-                    setCallStatus('idle');
-                }, 500);
+                // Reset to idle immediately for smooth transition
+                setCallStatus('idle');
             });
 
         } catch (error) {
@@ -349,9 +390,10 @@ export const VoiceProvider = ({ children }) => {
     const hangup = () => {
         if (call) {
             call.disconnect();
-            setCall(null);
-            setCallStatus('idle');
         }
+        // Immediately reset state for smooth transition
+        setCall(null);
+        setCallStatus('idle');
     };
 
     const acceptCall = () => {
@@ -363,9 +405,10 @@ export const VoiceProvider = ({ children }) => {
     const rejectCall = () => {
         if (call) {
             call.reject();
-            setCall(null);
-            setCallStatus('idle');
         }
+        // Immediately reset state for smooth transition
+        setCall(null);
+        setCallStatus('idle');
     };
 
     const toggleMute = () => {

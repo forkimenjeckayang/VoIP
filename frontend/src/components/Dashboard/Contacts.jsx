@@ -202,7 +202,7 @@ function Contacts() {
                 <button onClick={() => openModal(contact)} className="edit-btn" title="Edit">
                   <FiEdit />
                 </button>
-                <button onClick={() => confirmDelete(contact)} className="delete-btn" title="Delete">
+                <button onClick={() => confirmDelete(contact)} className="contact-delete-btn" title="Delete">
                   <FiTrash2 />
                 </button>
               </div>
