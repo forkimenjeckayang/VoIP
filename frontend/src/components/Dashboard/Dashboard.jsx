@@ -222,8 +222,14 @@ function Dashboard() {
     };
 
     window.addEventListener('contactDeleted', handleContactDeletedEvent);
+    const handleContactSavedEvent = () => {
+      handleContactSaved();
+    };
+
+    window.addEventListener('contactSaved', handleContactSavedEvent);
     return () => {
       window.removeEventListener('contactDeleted', handleContactDeletedEvent);
+      window.removeEventListener('contactSaved', handleContactSavedEvent);
     };
   }, [selectedChat, handleContactDeleted]);
 

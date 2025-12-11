@@ -68,6 +68,7 @@ function Contacts() {
           showAlert('success', '✨ Contact updated successfully!');
           loadContacts();
           closeModal();
+          window.dispatchEvent(new CustomEvent('contactSaved'));
         }
       } else {
         const res = await api.post('/contact/create', dataToSubmit);
@@ -75,6 +76,7 @@ function Contacts() {
           showAlert('success', '✨ Contact added successfully!');
           loadContacts();
           closeModal();
+          window.dispatchEvent(new CustomEvent('contactSaved'));
         }
       }
     } catch (error) {
