@@ -104,3 +104,82 @@ exports.deleteMedia = async (req, res) => {
         res.status(400).json({ status: 'false', message: 'something is wrong' });
     }
 };
+
+// Proxy download endpoint to bypass CORS issues
+exports.downloadMedia = async (req, res) => {
+    try {
+        const { url } = req.query;
+        
+        if (!url) {
+            return res.status(400).json({ status: false, message: 'URL parameter is required' });
+        }
+
+        // Extract file path from URL
+        let filePath;
+        try {
+            const urlObj = new URL(url);
+            // If URL contains /uploads/, extract the path after it
+            const uploadsIndex = urlObj.pathname.indexOf('/uploads/');
+            if (uploadsIndex !== -1) {
+                filePath = urlObj.pathname.substring(uploadsIndex + 1); // Remove leading '/'
+            } else {
+                filePath = urlObj.pathname;
+            }
+        } catch (e) {
+            // If URL parsing fails, assume it's already a relative path
+            filePath = url.startsWith('/') ? url.substring(1) : url;
+        }
+
+        // Construct full file path
+        const fullPath = path.join(__dirname, '../../', filePath);
+
+        // Check if file exists
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ status: false, message: 'File not found' });
+        }
+
+        // Get filename from path
+        const filename = path.basename(filePath);
+
+        // Set headers for download
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        // Determine content type
+        const ext = path.extname(filename).toLowerCase();
+        const mimeTypes = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.mp4': 'video/mp4',
+            '.webm': 'video/webm',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.pdf': 'application/pdf',
+            '.zip': 'application/zip'
+        };
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+
+        // Stream the file
+        const fileStream = fs.createReadStream(fullPath);
+        fileStream.pipe(res);
+
+        fileStream.on('error', (error) => {
+            console.error('Error streaming file:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ status: false, message: 'Error reading file' });
+            }
+        });
+
+    } catch (error) {
+        console.error('Download error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ status: false, message: 'Failed to download file' });
+        }
+    }
+};

@@ -325,52 +325,45 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted, onMe
   // Download media file
   const handleDownloadMedia = async (url, filename) => {
     try {
-      // Check if URL is same-origin (our server) or cross-origin
-      const isSameOrigin = url.startsWith(window.location.origin) || url.startsWith('/');
+      // Use proxy endpoint to bypass CORS issues
+      // The proxy endpoint will fetch the file from the server and serve it with proper headers
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      const proxyUrl = `${apiBaseUrl}/media/download?url=${encodeURIComponent(url)}`;
       
-      if (isSameOrigin) {
-        // Same-origin: Use fetch with credentials for better reliability
-        try {
-          const response = await fetch(url, { 
-            mode: 'cors',
-            credentials: 'include' // Include cookies if needed
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = filename || `media-${Date.now()}`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(blobUrl);
-          return;
-        } catch (fetchError) {
-          console.warn('Fetch download failed, trying direct link:', fetchError);
-        }
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
       
-      // Fallback: Direct download link (works for same-origin and CORS-enabled)
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       link.download = filename || `media-${Date.now()}`;
-      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // If direct download doesn't work, open in new tab as last resort
-      setTimeout(() => {
-        // Check if download started (this is a best-effort check)
-        // If user wants to save, they can right-click
-      }, 100);
+      window.URL.revokeObjectURL(blobUrl);
       
     } catch (error) {
-      console.error('Failed to download media:', error);
-      // Last resort: Open in new tab so user can right-click and save
-      window.open(url, '_blank');
-      setError('Download initiated. If it doesn\'t start, right-click the media and select "Save As".');
+      console.error('Download failed:', error);
+      // Fallback: Try direct download link (may not work due to CORS)
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || `media-${Date.now()}`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (fallbackError) {
+        console.error('All download methods failed:', fallbackError);
+        setError('Failed to download. Please try right-clicking the image and selecting "Save As".');
+      }
     }
   };
 
