@@ -293,11 +293,56 @@ exports.sendSms = async (req, res) => {
             ),
           };
           if (req.body.media.length > 0) {
-            twilioParams.mediaUrl = req.body.media;
+            // Validate and ensure media URLs are publicly accessible HTTPS URLs
+            const validMediaUrls = req.body.media.filter(url => {
+              if (!url) return false;
+              // Ensure URL is absolute and uses HTTPS (or HTTP for localhost testing)
+              const isAbsolute = url.startsWith('http://') || url.startsWith('https://');
+              if (!isAbsolute) {
+                console.warn('⚠️ Invalid media URL (not absolute):', url);
+                return false;
+              }
+              // For production, prefer HTTPS (but allow HTTP for localhost)
+              const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+              if (!isLocalhost && !url.startsWith('https://')) {
+                console.warn('⚠️ Media URL should use HTTPS for production:', url);
+              }
+              return true;
+            });
+            
+            if (validMediaUrls.length > 0) {
+              twilioParams.mediaUrl = validMediaUrls;
+              console.log('📤 Sending media URLs to Twilio:', validMediaUrls);
+              console.log('📤 BASE_URL:', process.env.BASE_URL);
+              // Verify URLs are accessible (for debugging)
+              validMediaUrls.forEach((url, index) => {
+                console.log(`📎 Media URL ${index + 1}: ${url}`);
+              });
+            } else {
+              console.error('❌ No valid media URLs to send');
+              console.error('❌ Original media array:', req.body.media);
+            }
           }
           //media
-          var sendSms = await client.messages.create(twilioParams);
-          if (sendSms.sid !== undefined) {
+          try {
+            var sendSms = await client.messages.create(twilioParams);
+            if (sendSms.sid !== undefined) {
+              console.log('✅ Message sent successfully with SID:', sendSms.sid);
+              if (req.body.media && req.body.media.length > 0) {
+                console.log('📎 Media included in message');
+              }
+            }
+          } catch (twilioError) {
+            console.error('❌ Twilio error sending message:', twilioError);
+            // If media URLs are invalid, Twilio will still send but might convert to links
+            if (twilioError.message && twilioError.message.includes('media')) {
+              console.error('⚠️ Media URL issue detected. Ensure URLs are publicly accessible HTTPS URLs.');
+            }
+            // Re-throw to handle in outer catch
+            throw twilioError;
+          }
+          
+          if (sendSms && sendSms.sid !== undefined) {
             var messageData = {
               sid: sendSms.sid,
               user: req.body.user,
