@@ -149,7 +149,7 @@ const configureNumber = (numbersid) => {
                 .update({
                     smsUrl: combineURLs(process.env.BASE_URL.trim(), "api/setting/receive-sms/twilio"),
                     smsMethod: 'POST',
-                    voiceUrl: combineURLs(process.env.BASE_URL.trim(), "api/call/incoming"),
+                    voiceUrl: combineURLs(process.env.BASE_URL.trim(), "api/call/incomming"),
                     voiceMethod: 'POST'
                 })
             resolve(true)

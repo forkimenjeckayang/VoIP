@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FiPhone, FiPhoneOff, FiDelete, FiMic, FiMicOff, FiUser, FiUsers } from 'react-icons/fi';
+import { FiPhone, FiPhoneOff, FiDelete, FiMic, FiMicOff, FiUser, FiUsers, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
 import './Dialer.css';
+import '../shared/Modal.css';
 
 function Dialer() {
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -10,6 +11,8 @@ function Dialer() {
     const [contacts, setContacts] = useState([]);
     const [showContacts, setShowContacts] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
+    const [showAlertModal, setShowAlertModal] = useState(false);
+    const [alertMessage, setAlertMessage] = useState({ type: '', message: '' });
     const {
         call,
         callStatus,
@@ -26,6 +29,14 @@ function Dialer() {
         loadProfiles();
         loadContacts();
     }, []);
+
+    // Reset UI when call status changes to 'ended' - VoiceContext will reset to 'idle' automatically
+    useEffect(() => {
+        if (callStatus === 'ended') {
+            // VoiceContext will automatically reset to 'idle' after 500ms
+            // This effect is just for any additional cleanup if needed
+        }
+    }, [callStatus]);
 
     const loadProfiles = async () => {
         try {
@@ -58,29 +69,47 @@ function Dialer() {
     };
 
     const handleNumberClick = (num) => {
-        setPhoneNumber(prev => prev + num);
+        // Allow + only at the beginning
+        if (num === '+') {
+            if (!phoneNumber.startsWith('+')) {
+                setPhoneNumber('+' + phoneNumber);
+            }
+        } else {
+            setPhoneNumber(prev => prev + num);
+        }
     };
 
     const handleDelete = () => {
         setPhoneNumber(prev => prev.slice(0, -1));
     };
 
+    const showAlert = (type, message) => {
+        setAlertMessage({ type, message });
+        setShowAlertModal(true);
+    };
+
     const handleCall = () => {
         if (!selectedProfile) {
-            alert('Please select a phone number profile first (go to Settings)');
+            showAlert('error', 'Please select a phone number profile first. Go to Settings to select one.');
             return;
         }
 
-        if (phoneNumber.length >= 10) {
-            makeCall(phoneNumber);
-        } else {
-            alert('Please enter a valid phone number');
+        // Remove + for validation, then check length
+        const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+        if (digitsOnly.length < 10) {
+            showAlert('error', 'Please enter a valid phone number (at least 10 digits)');
+            return;
         }
+
+        makeCall(phoneNumber, (error) => {
+            showAlert('error', error);
+        });
     };
 
     const handleHangup = () => {
         hangup();
-        setPhoneNumber('');
+        // Don't clear phone number - let user keep it for next call
+        // setPhoneNumber('');
     };
 
     const handleAccept = () => {
@@ -115,7 +144,7 @@ function Dialer() {
         ['1', '2', '3'],
         ['4', '5', '6'],
         ['7', '8', '9'],
-        ['*', '0', '#']
+        ['+', '*', '0', '#']
     ];
 
     const getStatusDisplay = () => {
@@ -189,7 +218,14 @@ function Dialer() {
                         <input
                             type="text"
                             value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9+]/g, ''))}
+                            onChange={(e) => {
+                                let value = e.target.value.replace(/[^0-9+]/g, '');
+                                // Ensure + is only at the beginning
+                                if (value.includes('+') && !value.startsWith('+')) {
+                                    value = '+' + value.replace(/\+/g, '');
+                                }
+                                setPhoneNumber(value);
+                            }}
                             placeholder="Enter phone number"
                             className="phone-input"
                             disabled={callStatus !== 'idle'}
@@ -259,6 +295,24 @@ function Dialer() {
                         <FiPhone /> Call
                     </button>
                 </>
+            )}
+
+            {/* Alert Modal */}
+            {showAlertModal && (
+                <div className="modal-overlay" onClick={() => setShowAlertModal(false)}>
+                    <div className={`modal-content alert-modal ${alertMessage.type}`} onClick={(e) => e.stopPropagation()}>
+                        <div className="icon">
+                            {alertMessage.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
+                        </div>
+                        <h3>{alertMessage.type === 'success' ? 'Success' : 'Error'}</h3>
+                        <p>{alertMessage.message}</p>
+                        <div className="modal-actions">
+                            <button onClick={() => setShowAlertModal(false)} className="confirm-btn">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

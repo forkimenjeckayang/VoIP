@@ -3,6 +3,9 @@
   background-color: var(--bg-primary);
   padding: 2rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  width: 100%;
 }
 
 /* Profile Header */
@@ -15,6 +18,8 @@
   border-radius: 20px;
   margin-bottom: 2rem;
   border: 1px solid rgba(0, 168, 132, 0.2);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .profile-avatar-large {
@@ -48,6 +53,7 @@
   display: flex;
   gap: 0.75rem;
   margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
 .update-username-btn,
@@ -261,6 +267,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .section-header h3 {
@@ -427,6 +435,8 @@
   gap: 1rem;
   transition: all 0.3s ease;
   position: relative;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .profile-card.active {
@@ -504,6 +514,7 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .set-active-btn {

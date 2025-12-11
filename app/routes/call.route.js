@@ -7,6 +7,9 @@ module.exports = app => {
     router.post("/setting/delete", auth, call.delete);
     router.post("/setting/get", auth, call.get);
     router.post("/token", auth, call.getToken);
+    router.post("/history", auth, call.getCallHistory);
+    router.post("/create", auth, call.createCall);
+    router.post("/update-status", auth, call.updateCallStatus);
 
     //calling route - Twilio-only
     router.post("/make-call", call.makeCall);

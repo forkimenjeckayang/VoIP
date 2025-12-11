@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiMessageSquare, FiUsers, FiSettings, FiLogOut, FiPhone, FiEdit, FiX } from 'react-icons/fi';
+import { FiMessageSquare, FiUsers, FiSettings, FiLogOut, FiPhone, FiEdit, FiX, FiClock } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
 import api from '../../services/api';
@@ -128,6 +128,12 @@ function Sidebar({ conversations, selectedChat, onSelectChat, onReloadContacts }
           onClick={() => { setActiveTab('dialer'); navigate('/dialer'); }}
         >
           <FiPhone /> Dialer
+        </button>
+        <button
+          className={activeTab === 'call-history' ? 'active' : ''}
+          onClick={() => { setActiveTab('call-history'); navigate('/call-history'); }}
+        >
+          <FiClock /> Call History
         </button>
         <button
           className={activeTab === 'contacts' ? 'active' : ''}

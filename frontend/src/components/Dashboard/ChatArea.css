@@ -217,7 +217,8 @@
   border-top: 1px solid var(--border-color);
 }
 
-.message-input-container input {
+.message-input-container input,
+.message-input-container .message-textarea {
   flex: 1;
   background-color: var(--bg-secondary);
   border: none;
@@ -225,11 +226,29 @@
   border-radius: 24px;
   color: var(--text-primary);
   font-size: 0.9rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  overflow-y: auto;
+  line-height: 1.5;
 }
 
-.message-input-container input:focus {
+.message-input-container .message-textarea {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.message-input-container input:focus,
+.message-input-container .message-textarea:focus {
   outline: none;
   border: 1px solid var(--primary-color);
+}
+
+.message-input-container input:disabled,
+.message-input-container .message-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .send-btn {

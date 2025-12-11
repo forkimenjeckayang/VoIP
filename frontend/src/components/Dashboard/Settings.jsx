@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiPhone, FiDollarSign, FiPlus, FiTrash2, FiCheckCircle, FiAlertCircle, FiMessageSquare, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
@@ -28,33 +28,24 @@ function Settings() {
   const [newUsername, setNewUsername] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  useEffect(() => {
-    loadData();
-    calculateStats();
-  }, []);
-
-  // Listen for profile deletion events from socket
-  useEffect(() => {
-    if (socket) {
-      const handleProfileDeleted = (data) => {
-        console.log('🗑️ Profile deleted via socket:', data);
-        // Reload profiles to reflect deletion
-        loadProfiles();
-        // If deleted profile was selected, clear selection
-        if (selectedProfile?._id === data.profile_id) {
-          setSelectedProfile(null);
-        }
-      };
-
-      socket.on('profile_deleted', handleProfileDeleted);
-
-      return () => {
-        if (socket) {
-          socket.off('profile_deleted', handleProfileDeleted);
-        }
-      };
+  // Define loadStats first so it can be used in other functions
+  const loadStats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.post('/setting/get-stats', {
+        user: user._id || user.id
+      });
+      if (res.data.status) {
+        setStats(prev => ({
+          ...prev,
+          messages: res.data.data?.messages || 0,
+          calls: res.data.data?.calls || 0
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load stats:', error);
     }
-  }, [socket, selectedProfile, setSelectedProfile]);
+  }, [user]);
 
   const calculateStats = () => {
     // Calculate account uptime
@@ -64,15 +55,6 @@ function Settings() {
       const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
       setStats(prev => ({ ...prev, uptime: `${diffDays} days` }));
     }
-  };
-
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([
-      loadProfiles(),
-      loadBalance()
-    ]);
-    setLoading(false);
   };
 
   const loadProfiles = async () => {
@@ -103,6 +85,93 @@ function Settings() {
       console.error('Failed to load balance:', error);
     }
   };
+
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([
+      loadProfiles(),
+      loadBalance(),
+      loadStats()
+    ]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+    calculateStats();
+    // Note: loadStats is already called inside loadData, so we don't need to call it separately
+  }, []);
+
+  // Listen for profile deletion events from socket
+  useEffect(() => {
+    if (socket) {
+      const handleProfileDeleted = (data) => {
+        console.log('🗑️ Profile deleted via socket:', data);
+        // Reload profiles to reflect deletion
+        loadProfiles();
+        // If deleted profile was selected, clear selection
+        if (selectedProfile?._id === data.profile_id) {
+          setSelectedProfile(null);
+        }
+      };
+
+      socket.on('profile_deleted', handleProfileDeleted);
+
+      return () => {
+        if (socket) {
+          socket.off('profile_deleted', handleProfileDeleted);
+        }
+      };
+    }
+  }, [socket, selectedProfile, setSelectedProfile]);
+
+  // Listen for new messages and calls to update stats in real-time
+  useEffect(() => {
+    if (socket && user && loadStats) {
+      const handleNewMessage = (message) => {
+        // Reload stats when a new message is received or sent
+        // This ensures accurate counts even if the event doesn't include datatype
+        loadStats();
+      };
+
+      const handleUserMessage = (data) => {
+        // Listen for call events (user_message with message: 'call')
+        if (data.message === 'call') {
+          // Reload stats when a call event is received
+          loadStats();
+        }
+      };
+
+      const handleMessageDeleted = (data) => {
+        // Reload stats when messages are deleted
+        loadStats();
+      };
+
+      const handleMessagesDeleted = (data) => {
+        // Reload stats when all messages in a conversation are deleted
+        loadStats();
+      };
+
+      // Listen for new messages
+      socket.on('new_message', handleNewMessage);
+      
+      // Listen for user_message events (which includes calls)
+      socket.on('user_message', handleUserMessage);
+
+      // Listen for message deletion events
+      socket.on('message_deleted', handleMessageDeleted);
+      socket.on('messages_deleted', handleMessagesDeleted);
+
+      return () => {
+        if (socket) {
+          socket.off('new_message', handleNewMessage);
+          socket.off('user_message', handleUserMessage);
+          socket.off('message_deleted', handleMessageDeleted);
+          socket.off('messages_deleted', handleMessagesDeleted);
+        }
+      };
+    }
+  }, [socket, user, loadStats]);
 
   const loadAvailableNumbers = async () => {
     setLoadingNumbers(true);

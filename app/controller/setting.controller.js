@@ -627,7 +627,11 @@ exports.getNumberList = async (req, res) => {
     
     // If setting is provided, filter by it; otherwise, get all messages for the user
     // This allows viewing messages even when no profile is selected (like phone without SIM)
-    var matchStage = { user: user_id };
+    // Only get messages, not calls, for conversation list
+    var matchStage = { 
+      user: user_id,
+      datatype: 'message' // Only show messages in conversations, not calls
+    };
     if (req.body.setting) {
       var setting = new mongoose.Types.ObjectId(req.body.setting);
       matchStage.setting = setting;
@@ -757,6 +761,7 @@ exports.messageList = async (req, res) => {
 
       filterObject = {
         user: { $eq: req.user.id },
+        datatype: { $eq: 'message' }, // Only get messages, not calls
         $or: [
           { number: { $eq: req.body.phoneNumber } },
           { twilio_number: { $eq: req.body.phoneNumber } },
@@ -769,15 +774,16 @@ exports.messageList = async (req, res) => {
       // Old format for backward compatibility
       filterObject = {
         user: { $eq: req.body.user },
+        datatype: { $eq: 'message' }, // Only get messages, not calls
         twilio_number: { $eq: req.body.number.twilio_number },
         number: { $eq: req.body.number._id },
         setting: { $eq: req.body.profile },
       };
     }
 
-    // Mark as read
+    // Mark as read (only for messages, not calls)
     await Message.updateMany(
-      { ...filterObject, isview: { $eq: "false" } },
+      { ...filterObject, isview: { $eq: "false" }, datatype: { $eq: "message" } },
       { isview: "true" }
     );
 
@@ -787,5 +793,38 @@ exports.messageList = async (req, res) => {
   } catch (error) {
     console.error('Message list error:', error);
     res.status(400).json({ status: "false", message: "something went wrong" });
+  }
+};
+
+exports.getStats = async (req, res) => {
+  try {
+    const user_id = req.body.user || req.user?.id;
+    if (!user_id) {
+      return res.status(400).json({ status: false, message: 'User ID is required' });
+    }
+
+    // Count messages (datatype: 'message')
+    const messageCount = await Message.countDocuments({
+      user: user_id,
+      datatype: 'message'
+    });
+
+    // Count calls (datatype: 'call')
+    const callCount = await Message.countDocuments({
+      user: user_id,
+      datatype: 'call'
+    });
+
+    res.status(200).json({
+      status: true,
+      message: 'Stats retrieved successfully',
+      data: {
+        messages: messageCount,
+        calls: callCount
+      }
+    });
+  } catch (error) {
+    console.error('getStats error:', error);
+    res.status(500).json({ status: false, message: 'Something went wrong' });
   }
 };

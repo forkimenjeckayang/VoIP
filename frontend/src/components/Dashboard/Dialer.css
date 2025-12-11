@@ -1,9 +1,14 @@
 .dialer-container {
-  max-width: 400px;
-  margin: 0 auto;
+  max-width: 500px;
+  width: 100%;
+  margin: 2rem auto;
   padding: 2rem;
   background: var(--bg-secondary);
   border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .dialer-header {
@@ -239,6 +244,12 @@
   display: flex;
   gap: 12px;
   justify-content: center;
+  width: 100%;
+}
+
+.dial-row:last-child {
+  /* Last row has 4 buttons (+ * 0 #) */
+  justify-content: center;
 }
 
 .dial-button {
@@ -252,6 +263,7 @@
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .dial-button:hover:not(:disabled) {

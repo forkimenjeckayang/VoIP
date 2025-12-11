@@ -61,6 +61,13 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
     if (socket && selectedChat) {
       const handleNewMessage = (message) => {
         console.log('📨 Received new_message socket event:', message);
+        
+        // Filter out calls - only process actual messages
+        if (message.datatype === 'call') {
+          console.log('📞 Ignoring call event in chat area');
+          return;
+        }
+        
         // Check if message is for this chat (compare with contact's phone number)
         // Message.number is the contact's number, message.twilio_number is our number
         const isForThisChat = 
@@ -152,7 +159,11 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
       });
 
       if (res.data.status === 'true') {
-        setMessages(res.data.data || []);
+        // Filter out any calls that might have been returned (safety check)
+        const messagesOnly = (res.data.data || []).filter(msg => 
+          !msg.datatype || msg.datatype === 'message'
+        );
+        setMessages(messagesOnly);
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -164,7 +175,11 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat || !selectedChat.phoneNumber) return;
+    // Prevent sending empty messages
+    const trimmedMessage = newMessage.trim();
+    if (!trimmedMessage || !selectedChat || !selectedChat.phoneNumber) {
+      return;
+    }
 
     if (!selectedProfile) {
       setError('No active profile (phone number) selected. Please go to Settings to select one, or create one if none exist.');
@@ -178,7 +193,7 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         user: user.id || user._id, // Ensure we pass the user ID from auth context
         numbers: [selectedChat.phoneNumber], // Backend expects array of strings
         profile: selectedProfile, // Backend accesses ._id from this object
-        message: newMessage, // Backend expects 'message', not 'body'
+        message: trimmedMessage, // Backend expects 'message', not 'body' - use trimmed version
         media: []
       };
 
@@ -593,14 +608,29 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         <button type="button" className="attach-btn">
           <FiPaperclip />
         </button>
-        <input
-          type="text"
+        <textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={(e) => {
+            // Allow Enter to send, Shift+Enter for new line
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (newMessage.trim() && !sending) {
+                handleSendMessage(e);
+              }
+            }
+          }}
           placeholder="Type a message..."
           disabled={sending}
+          rows={1}
+          className="message-textarea"
         />
-        <button type="submit" className="send-btn" disabled={!newMessage.trim() || sending}>
+        <button 
+          type="submit" 
+          className="send-btn" 
+          disabled={!newMessage.trim() || sending}
+          title={!newMessage.trim() ? "Type a message to send" : "Send message"}
+        >
           {sending ? <div className="spinner-small"></div> : <FiSend />}
         </button>
       </form>

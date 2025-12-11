@@ -1,6 +1,7 @@
 .dashboard {
   display: flex;
   height: 100vh;
+  width: 100vw;
   background-color: var(--bg-primary);
   overflow: hidden;
 }
@@ -8,10 +9,12 @@
 .main-content {
   flex: 1;
   height: 100%;
+  width: 100%;
+  min-width: 700px;
   display: flex;
   flex-direction: column;
-  min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 @media (max-width: 768px) {
@@ -34,6 +37,7 @@
     /* Hidden by default */
     width: 100%;
     height: 100%;
+    min-width: 100%;
   }
 
   /* When content is active (Chat selected or other tab) */

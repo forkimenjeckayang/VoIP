@@ -97,7 +97,7 @@ export const VoiceProvider = ({ children }) => {
     const initializeDevice = async () => {
         try {
             // Get access token from backend
-            const res = await api.post('/call/get-token', {
+            const res = await api.post('/call/token', {
                 setting_id: selectedProfile._id
             });
 
@@ -132,11 +132,19 @@ export const VoiceProvider = ({ children }) => {
                     incomingCall.on('disconnect', () => {
                         setCallStatus('ended');
                         setCall(null);
+                        // Reset to idle after a brief moment to allow UI to update
+                        setTimeout(() => {
+                            setCallStatus('idle');
+                        }, 500);
                     });
 
                     incomingCall.on('reject', () => {
                         setCallStatus('ended');
                         setCall(null);
+                        // Reset to idle after a brief moment to allow UI to update
+                        setTimeout(() => {
+                            setCallStatus('idle');
+                        }, 500);
                     });
                 });
 
@@ -148,9 +156,18 @@ export const VoiceProvider = ({ children }) => {
         }
     };
 
-    const makeCall = async (phoneNumber) => {
-        if (!device || !selectedProfile) {
-            alert('Please select a profile first');
+    const makeCall = async (phoneNumber, onError) => {
+        if (!selectedProfile) {
+            if (onError) {
+                onError('Please select a profile first. Go to Settings to select a phone number.');
+            }
+            return;
+        }
+
+        if (!device) {
+            if (onError) {
+                onError('Device not initialized. Please wait a moment and try again.');
+            }
             return;
         }
 
@@ -166,24 +183,166 @@ export const VoiceProvider = ({ children }) => {
 
             setCall(outgoingCall);
 
-            outgoingCall.on('accept', () => {
+            // Helper function to get CallSid from the call object
+            const getCallSid = () => {
+                return outgoingCall.parameters?.CallSid || 
+                       outgoingCall.parameters?.callSid || 
+                       outgoingCall.sid || 
+                       null;
+            };
+
+            // Save call to database when call is initiated
+            // Use a small delay to ensure CallSid is available
+            setTimeout(async () => {
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        console.log('📞 Saving call record:', { callSid, phoneNumber, twilio_number: selectedProfile.phoneNumber });
+                        const response = await api.post('/call/create', {
+                            sid: callSid,
+                            number: phoneNumber,
+                            twilio_number: selectedProfile.phoneNumber,
+                            type: 'send',
+                            status: 'initiated'
+                        });
+                        console.log('✅ Call record saved:', response.data);
+                    } catch (error) {
+                        console.error('❌ Failed to save call record:', error.response?.data || error.message);
+                    }
+                } else {
+                    console.warn('⚠️ CallSid not available, cannot save call record');
+                }
+            }, 500); // Increased delay to ensure CallSid is available
+
+            outgoingCall.on('accept', async () => {
                 setCallStatus('active');
+                // Update call status to active
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        await api.post('/call/update-status', {
+                            sid: callSid,
+                            status: 'active'
+                        });
+                    } catch (error) {
+                        // Silently fail - don't break the call flow
+                        if (error.response?.status !== 404) {
+                            console.error('Failed to update call status:', error);
+                        }
+                    }
+                }
             });
 
-            outgoingCall.on('disconnect', () => {
+            outgoingCall.on('disconnect', async () => {
                 setCallStatus('ended');
+                // Update call status and duration
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        const duration = outgoingCall.parameters?.CallDuration || 
+                                        outgoingCall.parameters?.callDuration || 0;
+                        await api.post('/call/update-status', {
+                            sid: callSid,
+                            status: 'completed',
+                            duration: parseInt(duration) || 0
+                        });
+                    } catch (error) {
+                        // Silently fail - don't break the call flow if status update fails
+                        // The call record was already created, status update is just for accuracy
+                        if (error.response?.status !== 404) {
+                            console.error('Failed to update call status:', error);
+                        }
+                    }
+                }
                 setCall(null);
+                // Reset to idle after a brief moment to allow UI to update
+                setTimeout(() => {
+                    setCallStatus('idle');
+                }, 500);
             });
 
-            outgoingCall.on('reject', () => {
+            outgoingCall.on('reject', async () => {
                 setCallStatus('ended');
+                // Update call status to rejected
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        await api.post('/call/update-status', {
+                            sid: callSid,
+                            status: 'rejected'
+                        });
+                    } catch (error) {
+                        // Silently fail - don't break the call flow
+                        if (error.response?.status !== 404) {
+                            console.error('Failed to update call status:', error);
+                        }
+                    }
+                }
                 setCall(null);
+                // Reset to idle after a brief moment to allow UI to update
+                setTimeout(() => {
+                    setCallStatus('idle');
+                }, 500);
+            });
+
+            outgoingCall.on('cancel', async () => {
+                // Update call status to canceled
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        await api.post('/call/update-status', {
+                            sid: callSid,
+                            status: 'canceled'
+                        });
+                    } catch (error) {
+                        // Silently fail - don't break the call flow
+                        if (error.response?.status !== 404) {
+                            console.error('Failed to update call status:', error);
+                        }
+                    }
+                }
+            });
+
+            // Handle call errors (including timeout/no-answer - error 31000)
+            outgoingCall.on('error', async (error) => {
+                console.error('Call error:', error);
+                setCallStatus('ended');
+                
+                // Update call status based on error code
+                const callSid = getCallSid();
+                if (callSid) {
+                    try {
+                        let status = 'failed';
+                        // Error 31000 = "Call is no longer valid" (usually timeout/no-answer)
+                        if (error.code === 31000 || error.message?.includes('no longer valid') || error.message?.includes('UnknownError')) {
+                            status = 'no-answer';
+                        }
+                        
+                        await api.post('/call/update-status', {
+                            sid: callSid,
+                            status: status
+                        });
+                    } catch (updateError) {
+                        // Silently fail - don't break the call flow
+                        if (updateError.response?.status !== 404) {
+                            console.error('Failed to update call status:', updateError);
+                        }
+                    }
+                }
+                
+                setCall(null);
+                // Reset to idle after a brief moment
+                setTimeout(() => {
+                    setCallStatus('idle');
+                }, 500);
             });
 
         } catch (error) {
             console.error('Failed to make call:', error);
             setCallStatus('idle');
-            alert('Failed to make call: ' + error.message);
+            if (onError) {
+                onError('Failed to make call: ' + (error.message || 'Unknown error'));
+            }
         }
     };
 

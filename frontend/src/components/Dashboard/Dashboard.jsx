@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import Contacts from './Contacts';
 import Settings from './Settings';
 import Dialer from './Dialer';
+import CallHistory from './CallHistory';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
@@ -18,6 +19,7 @@ function Dashboard() {
   const socket = useSocket();
   const { user } = useAuth();
   const { selectedProfile } = useVoice();
+  const location = useLocation();
 
   const loadConversations = useCallback(async () => {
     try {
@@ -108,6 +110,12 @@ function Dashboard() {
   useEffect(() => {
     if (socket) {
       socket.on('new_message', (message) => {
+        // Filter out calls - only process actual messages for conversations
+        if (message.datatype === 'call') {
+          console.log('📞 Ignoring call event in conversation list');
+          return;
+        }
+        
         // Update conversations with new message
         setConversations(prev => {
           const updated = [...prev];
@@ -243,6 +251,7 @@ function Dashboard() {
           />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/dialer" element={<Dialer />} />
+          <Route path="/call-history" element={<CallHistory />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </div>

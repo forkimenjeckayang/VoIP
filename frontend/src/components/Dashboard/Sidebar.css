@@ -1,10 +1,12 @@
 .sidebar {
-  width: 380px;
+  width: 480px;
+  min-width: 480px;
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   height: 100vh;
+  flex-shrink: 0;
 }
 
 .sidebar-header {
@@ -68,11 +70,19 @@
   display: flex;
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-tabs button {
   flex: 1;
-  padding: 0.9rem;
+  min-width: 80px;
+  padding: 0.9rem 0.7rem;
   background: transparent;
   color: var(--text-secondary);
   border: none;
@@ -80,9 +90,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+  gap: 0.4rem;
+  font-size: 0.8rem;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .sidebar-tabs button:hover {
