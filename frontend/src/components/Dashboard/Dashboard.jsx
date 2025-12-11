@@ -60,7 +60,7 @@ function Dashboard() {
         name: conv.contact ? `${conv.contact.first_name || ''} ${conv.contact.last_name || ''}`.trim() : '',
         lastMessage: conv.message || '',
         timestamp: conv.created_at || new Date().toISOString(),
-        unread: conv.isview || 0 // The controller aggregation sums up 'isview=false' count
+        unread: 0 // Counter logic removed - no unread badges displayed
       }));
 
       console.log('Dashboard: Formatted conversations:', formattedConversations.length);
@@ -130,15 +130,12 @@ function Dashboard() {
             if (index >= 0) {
               updated[index].lastMessage = message.body || message.message;
               updated[index].timestamp = message.timestamp || message.created_at || new Date().toISOString();
-              if (!isOutbound) {
-                updated[index].unread = (updated[index].unread || 0) + 1;
-              }
             } else {
               updated.unshift({
                 phoneNumber: otherParty,
                 lastMessage: message.body || message.message,
                 timestamp: message.timestamp || message.created_at || new Date().toISOString(),
-                unread: !isOutbound ? 1 : 0
+                unread: 0
               });
             }
           }
@@ -207,6 +204,10 @@ function Dashboard() {
     }
   }, [loadConversations]);
 
+  const handleSelectChat = useCallback((chat) => {
+    setSelectedChat(chat);
+  }, []);
+
   // Listen for contact deletion events from Contacts component
   useEffect(() => {
     const handleContactDeletedEvent = (event) => {
@@ -238,7 +239,7 @@ function Dashboard() {
       <Sidebar
         conversations={conversations}
         selectedChat={selectedChat}
-        onSelectChat={setSelectedChat}
+        onSelectChat={handleSelectChat}
         onReloadContacts={reloadContactsRef}
       />
 
@@ -252,6 +253,7 @@ function Dashboard() {
                 onBack={() => setSelectedChat(null)}
                 onContactSaved={handleContactSaved}
                 onMessageDeleted={handleMessageDeleted}
+                onMessagesLoaded={loadConversations}
               />
             }
           />

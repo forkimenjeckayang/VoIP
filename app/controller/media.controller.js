@@ -32,20 +32,16 @@ var upload = multer({
     storage: storage,
     limits: { fileSize: maxSize },
     fileFilter: function (req, file, cb) {
+        // Accept all media types: images, videos, audio, documents
+        // This preserves the original format when sending
+        var allowedMimeTypes = /image|video|audio|application/;
+        var mimetype = allowedMimeTypes.test(file.mimetype);
 
-        // Set the filetypes, it is optional
-        var filetypes = /jpeg|jpg|gif|png/;
-        var mimetype = filetypes.test(file.mimetype);
-
-        var extname = filetypes.test(path.extname(
-            file.originalname).toLowerCase());
-
-        if (mimetype && extname) {
+        if (mimetype) {
             return cb(null, true);
         }
 
-        cb("Error: File upload only supports the "
-            + "following filetypes - " + filetypes);
+        cb("Error: File upload only supports media files (images, videos, audio, documents)");
     }
 
     // mypic is the name of file attribute

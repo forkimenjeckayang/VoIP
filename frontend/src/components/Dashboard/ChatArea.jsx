@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiSend, FiPhone, FiPaperclip, FiArrowLeft, FiInfo, FiX, FiMail, FiAlertCircle, FiUserPlus, FiEdit, FiTrash2, FiMoreVertical } from 'react-icons/fi';
+import { FiSend, FiPhone, FiPaperclip, FiArrowLeft, FiInfo, FiX, FiMail, FiAlertCircle, FiUserPlus, FiEdit, FiTrash2, FiMoreVertical, FiDownload } from 'react-icons/fi';
 import api from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,7 +7,7 @@ import { useVoice } from '../../context/VoiceContext';
 import './ChatArea.css';
 import '../shared/Modal.css';
 
-function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
+function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted, onMessagesLoaded }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,6 +23,10 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
   const [messageToDelete, setMessageToDelete] = useState(null);
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [error, setError] = useState('');
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [selectedMedia, setSelectedMedia] = useState([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const socket = useSocket();
   const { user } = useAuth();
@@ -164,6 +168,11 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
           !msg.datatype || msg.datatype === 'message'
         );
         setMessages(messagesOnly);
+        // Notify parent that messages were loaded (and marked as read)
+        // This will refresh the conversations list to update unread counters
+        if (onMessagesLoaded) {
+          onMessagesLoaded();
+        }
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -173,11 +182,52 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
     setLoading(false);
   };
 
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploadingMedia(true);
+    try {
+      const uploadedUrls = [];
+      
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await api.post('/media/upload-files', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        if (res.data.status && res.data.data) {
+          uploadedUrls.push(res.data.data.media);
+        }
+      }
+      
+      setSelectedMedia(prev => [...prev, ...uploadedUrls]);
+      setError('');
+    } catch (error) {
+      console.error('Failed to upload media:', error);
+      setError(error.response?.data?.message || 'Failed to upload media. Please try again.');
+    } finally {
+      setUploadingMedia(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeMedia = (index) => {
+    setSelectedMedia(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    // Prevent sending empty messages
+    // Prevent sending empty messages and media
     const trimmedMessage = newMessage.trim();
-    if (!trimmedMessage || !selectedChat || !selectedChat.phoneNumber) {
+    if ((!trimmedMessage && selectedMedia.length === 0) || !selectedChat || !selectedChat.phoneNumber) {
       return;
     }
 
@@ -193,8 +243,8 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         user: user.id || user._id, // Ensure we pass the user ID from auth context
         numbers: [selectedChat.phoneNumber], // Backend expects array of strings
         profile: selectedProfile, // Backend accesses ._id from this object
-        message: trimmedMessage, // Backend expects 'message', not 'body' - use trimmed version
-        media: []
+        message: trimmedMessage || '', // Backend expects 'message', not 'body' - use trimmed version
+        media: selectedMedia // Include uploaded media URLs
       };
 
       const res = await api.post('/setting/send-sms', payload);
@@ -203,6 +253,7 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         // Don't add message locally - wait for socket event from backend
         // This ensures consistency and prevents duplicates
         setNewMessage('');
+        setSelectedMedia([]); // Clear selected media after sending
         setError(''); // Clear any previous errors on successful send
       } else {
         setError(res.data.message || 'Failed to send message');
@@ -243,6 +294,96 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
     if (!timestamp) return '';
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Parse media from message (stored as JSON string)
+  const parseMedia = (message) => {
+    if (!message.media) return [];
+    try {
+      const media = typeof message.media === 'string' ? JSON.parse(message.media) : message.media;
+      return Array.isArray(media) ? media : [];
+    } catch (error) {
+      console.error('Failed to parse media:', error);
+      return [];
+    }
+  };
+
+  // Get media type from URL
+  const getMediaType = (url) => {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    // Images - match all formats backend supports
+    if (lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/)) return 'image';
+    // Videos - match all formats backend supports
+    if (lowerUrl.match(/\.(mp4|webm|mov|avi|mpg|mpeg|3gp)$/)) return 'video';
+    // Audio - match all formats backend supports
+    if (lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio';
+    // Documents and other files
+    return 'file';
+  };
+
+  // Download media file
+  const handleDownloadMedia = async (url, filename) => {
+    try {
+      // Check if URL is same-origin (our server) or cross-origin
+      const isSameOrigin = url.startsWith(window.location.origin) || url.startsWith('/');
+      
+      if (isSameOrigin) {
+        // Same-origin: Use fetch with credentials for better reliability
+        try {
+          const response = await fetch(url, { 
+            mode: 'cors',
+            credentials: 'include' // Include cookies if needed
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename || `media-${Date.now()}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+          return;
+        } catch (fetchError) {
+          console.warn('Fetch download failed, trying direct link:', fetchError);
+        }
+      }
+      
+      // Fallback: Direct download link (works for same-origin and CORS-enabled)
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `media-${Date.now()}`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // If direct download doesn't work, open in new tab as last resort
+      setTimeout(() => {
+        // Check if download started (this is a best-effort check)
+        // If user wants to save, they can right-click
+      }, 100);
+      
+    } catch (error) {
+      console.error('Failed to download media:', error);
+      // Last resort: Open in new tab so user can right-click and save
+      window.open(url, '_blank');
+      setError('Download initiated. If it doesn\'t start, right-click the media and select "Save As".');
+    }
+  };
+
+  // Get filename from URL
+  const getFilenameFromUrl = (url) => {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const filename = pathname.split('/').pop();
+      return filename || `media-${Date.now()}`;
+    } catch {
+      return `media-${Date.now()}`;
+    }
   };
 
   const handleUpdateContact = async () => {
@@ -564,7 +705,110 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
                     </button>
                   )}
                   <div className="message-content">
-                    <p>{msg.body || msg.message}</p>
+                    {/* Display media if available */}
+                    {(() => {
+                      const mediaItems = parseMedia(msg);
+                      return mediaItems.length > 0 && (
+                        <div className="message-media">
+                          {mediaItems.map((mediaUrl, mediaIndex) => {
+                            const mediaType = getMediaType(mediaUrl);
+                            const filename = getFilenameFromUrl(mediaUrl);
+                            
+                            return (
+                              <div key={mediaIndex} className="media-item">
+                                {mediaType === 'image' && (
+                                  <div className="media-image-wrapper">
+                                    <img 
+                                      src={mediaUrl} 
+                                      alt="Shared image" 
+                                      className="media-image"
+                                      loading="lazy"
+                                      onClick={() => setLightboxImage(mediaUrl)}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="media-fallback" style={{ display: 'none' }}>
+                                      <FiPaperclip size={24} />
+                                      <span>Image unavailable</span>
+                                    </div>
+                                    <button
+                                      className="media-download-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownloadMedia(mediaUrl, filename);
+                                      }}
+                                      title="Download image"
+                                    >
+                                      <FiDownload size={16} />
+                                    </button>
+                                  </div>
+                                )}
+                                {mediaType === 'video' && (
+                                  <div className="media-video-wrapper">
+                                    <video 
+                                      src={mediaUrl} 
+                                      controls 
+                                      className="media-video"
+                                      preload="metadata"
+                                    >
+                                      Your browser does not support the video tag.
+                                    </video>
+                                    <button
+                                      className="media-download-btn"
+                                      onClick={() => handleDownloadMedia(mediaUrl, filename)}
+                                      title="Download video"
+                                    >
+                                      <FiDownload size={16} />
+                                    </button>
+                                  </div>
+                                )}
+                                {mediaType === 'audio' && (
+                                  <div className="media-audio-wrapper">
+                                    <audio 
+                                      src={mediaUrl} 
+                                      controls 
+                                      className="media-audio"
+                                    >
+                                      Your browser does not support the audio tag.
+                                    </audio>
+                                    <button
+                                      className="media-download-btn"
+                                      onClick={() => handleDownloadMedia(mediaUrl, filename)}
+                                      title="Download audio"
+                                    >
+                                      <FiDownload size={16} />
+                                    </button>
+                                  </div>
+                                )}
+                                {mediaType === 'file' && (
+                                  <div className="media-file-wrapper">
+                                    <div className="media-file-icon">
+                                      <FiPaperclip size={24} />
+                                    </div>
+                                    <div className="media-file-info">
+                                      <span className="media-file-name">{filename}</span>
+                                      <button
+                                        className="media-download-btn-small"
+                                        onClick={() => handleDownloadMedia(mediaUrl, filename)}
+                                        title="Download file"
+                                      >
+                                        <FiDownload size={14} /> Download
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                    {/* Display text message if available */}
+                    {(msg.body || msg.message) && (
+                      <p>{msg.body || msg.message}</p>
+                    )}
                     <span className="message-time">
                       {currentMsgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -603,10 +847,56 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Selected Media Preview */}
+      {selectedMedia.length > 0 && (
+        <div className="selected-media-preview">
+          {selectedMedia.map((mediaUrl, index) => {
+            const mediaType = getMediaType(mediaUrl);
+            return (
+              <div key={index} className="preview-media-item">
+                {mediaType === 'image' && (
+                  <img src={mediaUrl} alt="Preview" className="preview-image" />
+                )}
+                {mediaType === 'video' && (
+                  <video src={mediaUrl} className="preview-video" controls />
+                )}
+                {mediaType !== 'image' && mediaType !== 'video' && (
+                  <div className="preview-file">
+                    <FiPaperclip size={24} />
+                    <span>{getFilenameFromUrl(mediaUrl)}</span>
+                  </div>
+                )}
+                <button
+                  className="preview-remove-btn"
+                  onClick={() => removeMedia(index)}
+                  title="Remove"
+                >
+                  <FiX size={16} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Input Area */}
       <form className="message-input-container" onSubmit={handleSendMessage}>
-        <button type="button" className="attach-btn">
-          <FiPaperclip />
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          multiple
+          accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          style={{ display: 'none' }}
+        />
+        <button 
+          type="button" 
+          className="attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingMedia || sending}
+          title="Attach media"
+        >
+          {uploadingMedia ? <div className="spinner-small"></div> : <FiPaperclip />}
         </button>
         <textarea
           value={newMessage}
@@ -628,8 +918,8 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
         <button 
           type="submit" 
           className="send-btn" 
-          disabled={!newMessage.trim() || sending}
-          title={!newMessage.trim() ? "Type a message to send" : "Send message"}
+          disabled={(!newMessage.trim() && selectedMedia.length === 0) || sending || uploadingMedia}
+          title={(!newMessage.trim() && selectedMedia.length === 0) ? "Type a message or attach media to send" : "Send message"}
         >
           {sending ? <div className="spinner-small"></div> : <FiSend />}
         </button>
@@ -643,6 +933,36 @@ function ChatArea({ selectedChat, onBack, onContactSaved, onMessageDeleted }) {
           <button onClick={closeError}>
             <FiX />
           </button>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div className="lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="lightbox-close" 
+              onClick={() => setLightboxImage(null)}
+              title="Close"
+            >
+              <FiX size={24} />
+            </button>
+            <img 
+              src={lightboxImage} 
+              alt="Full size" 
+              className="lightbox-image"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              className="lightbox-download"
+              onClick={() => {
+                handleDownloadMedia(lightboxImage, getFilenameFromUrl(lightboxImage));
+              }}
+              title="Download image"
+            >
+              <FiDownload size={20} />
+            </button>
+          </div>
         </div>
       )}
 

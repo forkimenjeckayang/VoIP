@@ -189,9 +189,6 @@ function Sidebar({ conversations, selectedChat, onSelectChat, onReloadContacts }
                       </div>
                       <div className="conversation-preview">
                         <p>{conv.lastMessage}</p>
-                        {conv.unread > 0 && (
-                          <span className="unread-badge">{conv.unread}</span>
-                        )}
                       </div>
                     </div>
                   </div>

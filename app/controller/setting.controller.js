@@ -351,7 +351,9 @@ exports.sendSms = async (req, res) => {
                 created_at: msg.created_at,
                 timestamp: msg.created_at,
                 user: msg.user,
-                setting: msg.setting
+                setting: msg.setting,
+                media: msg.media, // Include media field for real-time display
+                datatype: 'message' // Ensure it's marked as message, not call
               };
               console.log('📤 Emitting message data:', messageData);
               global.io.to(userId).emit('new_message', messageData);
@@ -370,7 +372,9 @@ exports.sendSms = async (req, res) => {
               created_at: messages.created_at,
               timestamp: messages.created_at,
               user: messages.user,
-              setting: messages.setting
+              setting: messages.setting,
+              media: messages.media, // Include media field for real-time display
+              datatype: 'message' // Ensure it's marked as message, not call
             });
           }
           
@@ -408,19 +412,50 @@ exports.receiveSms = async (req, res) => {
     var sid = req.body.SmsSid;
     if (req.body.NumMedia > 0) {
       var fackMedia = [];
+      // Helper function to get file extension from MIME type
+      const getExtensionFromMimeType = (mimeType) => {
+        const mimeToExt = {
+          // Images
+          'image/jpeg': 'jpg',
+          'image/jpg': 'jpg',
+          'image/png': 'png',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'image/bmp': 'bmp',
+          // Videos
+          'video/mp4': 'mp4',
+          'video/mpeg': 'mpg',
+          'video/quicktime': 'mov',
+          'video/x-msvideo': 'avi',
+          'video/webm': 'webm',
+          'video/3gpp': '3gp',
+          // Audio
+          'audio/mpeg': 'mp3',
+          'audio/mp3': 'mp3',
+          'audio/wav': 'wav',
+          'audio/x-wav': 'wav',
+          'audio/ogg': 'ogg',
+          'audio/m4a': 'm4a',
+          'audio/aac': 'aac',
+          // Documents
+          'application/pdf': 'pdf',
+          'application/msword': 'doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        };
+        return mimeToExt[mimeType] || 'bin'; // Default to .bin if unknown
+      };
+
       for (var i = 0; i < req.body.NumMedia; i++) {
         var tMedia = `MediaUrl${i}`;
         var tMediaType = `MediaContentType${i}`;
         const url = req.body[tMedia]; // link to file you want to download
-        //var name = `uploads/${Date.now()}${req.body.SmsSid}.png`;
-        // var name = crypto.randomBytes(24).toString('hex');
-        if (tMediaType == "image/gif") {
-          var name = `${crypto.randomBytes(24).toString("hex")}.gif`;
-        } else if (tMediaType == "image/jpeg") {
-          var name = `${crypto.randomBytes(24).toString("hex")}.jpg`;
-        } else {
-          var name = `${crypto.randomBytes(24).toString("hex")}.png`;
-        }
+        const contentType = req.body[tMediaType]; // MIME type from Twilio
+        
+        // Get the original file extension from MIME type
+        const extension = getExtensionFromMimeType(contentType);
+        const randomName = crypto.randomBytes(24).toString("hex");
+        var name = `${randomName}.${extension}`;
+        
         var date = moment(new Date()).format("MMDDYYYY");
         try {
           await fs.promises.access("./uploads/" + date);
@@ -430,7 +465,7 @@ exports.receiveSms = async (req, res) => {
 
         request(url)
           .pipe(fs.createWriteStream(`./uploads/${date}/${name}`))
-          .on("close", () => console.log("Image downloaded."));
+          .on("close", () => console.log(`Media downloaded: ${contentType} -> ${name}`));
         savedName = combineURLs(
           process.env.BASE_URL.trim(),
           "uploads",
@@ -438,15 +473,6 @@ exports.receiveSms = async (req, res) => {
           name
         );
         fackMedia.push(savedName);
-        /*request(url).pipe(fs.createWriteStream(name))
-                  .on('close', () => console.log('Image downloaded.'));
-                  savedName = combineURLs(
-                    process.env.BASE_URL.trim(),
-                    "uploads",
-                    date,
-                    name
-                  );
-                  fackMedia.push(savedName)*/
       }
       media = fackMedia;
     }
@@ -537,7 +563,9 @@ exports.receiveSms = async (req, res) => {
           created_at: messageSavedResponse.created_at,
           timestamp: messageSavedResponse.created_at,
           user: messageSavedResponse.user,
-          setting: messageSavedResponse.setting
+          setting: messageSavedResponse.setting,
+          media: messageSavedResponse.media, // Include media field for real-time display
+          datatype: 'message' // Ensure it's marked as message, not call
         };
         console.log('📥 Emitting message data:', messageData);
         global.io.to(userId).emit('new_message', messageData);
