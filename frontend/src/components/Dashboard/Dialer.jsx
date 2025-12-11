@@ -246,27 +246,36 @@ function Dialer() {
                         </div>
                     </div>
 
-                    {showContacts && contacts.length > 0 && (
-                        <div className="contacts-list">
-                            <div className="contacts-list-header">
-                                <h4>Select Contact</h4>
-                                <button onClick={() => setShowContacts(false)}>✕</button>
-                            </div>
-                            {contacts.map((contact) => (
-                                <div
-                                    key={contact._id}
-                                    className="contact-item"
-                                    onClick={() => handleContactSelect(contact)}
-                                >
-                                    <div className="contact-avatar-small">
-                                        {getInitials(contact)}
-                                    </div>
-                                    <div className="contact-item-info">
-                                        <strong>{contact.first_name} {contact.last_name}</strong>
-                                        <span>{formatPhoneNumber(contact.number)}</span>
-                                    </div>
+                    {showContacts && (
+                        <div className="modal-overlay" onClick={() => setShowContacts(false)}>
+                            <div className="modal-content contacts-modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="contacts-list-header">
+                                    <h4>Select Contact</h4>
+                                    <button onClick={() => setShowContacts(false)}>✕</button>
                                 </div>
-                            ))}
+
+                                {contacts.length === 0 ? (
+                                    <p className="no-contacts">No contacts available</p>
+                                ) : (
+                                    <div className="contacts-list-body">
+                                        {contacts.map((contact) => (
+                                            <div
+                                                key={contact._id}
+                                                className="contact-item"
+                                                onClick={() => handleContactSelect(contact)}
+                                            >
+                                                <div className="contact-avatar-small">
+                                                    {getInitials(contact)}
+                                                </div>
+                                                <div className="contact-item-info">
+                                                    <strong>{contact.first_name} {contact.last_name}</strong>
+                                                    <span>{formatPhoneNumber(contact.number)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
