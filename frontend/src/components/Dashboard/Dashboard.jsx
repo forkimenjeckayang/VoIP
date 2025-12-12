@@ -6,6 +6,7 @@ import Contacts from './Contacts';
 import Settings from './Settings';
 import Dialer from './Dialer';
 import CallHistory from './CallHistory';
+import IncomingCallModal from './IncomingCallModal';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import { useVoice } from '../../context/VoiceContext';
@@ -236,6 +237,7 @@ function Dashboard() {
 
   return (
     <div className={`dashboard ${selectedChat || location.pathname !== '/' ? 'mobile-content-active' : ''}`}>
+      <IncomingCallModal />
       <Sidebar
         conversations={conversations}
         selectedChat={selectedChat}
